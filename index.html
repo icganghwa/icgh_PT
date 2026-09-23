@@ -2,8 +2,18 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>공개 강연 일정 관리 - 인천 강화 회중</title>
+  
+  <!-- iOS 및 스마트폰 홈 화면(바탕화면) 앱 아이콘 및 전체화면 설정 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="강연 일정">
+  
+  <!-- '강연' 글자가 들어간 파란색 앱 아이콘 (코드 내장형) -->
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22><rect width=%22512%22 height=%22512%22 rx=%22115%22 fill=%22%234A74B5%22/><text x=%22256%22 y=%22345%22 font-size=%22190%22 font-family=%22'Apple SD Gothic Neo', sans-serif%22 font-weight=%22bold%22 fill=%22%23ffffff%22 text-anchor=%22middle%22>강연</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22><rect width=%22512%22 height=%22512%22 rx=%22115%22 fill=%22%234A74B5%22/><text x=%22256%22 y=%22345%22 font-size=%22190%22 font-family=%22'Apple SD Gothic Neo', sans-serif%22 font-weight=%22bold%22 fill=%22%23ffffff%22 text-anchor=%22middle%22>강연</text></svg>">
+
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   
@@ -33,7 +43,6 @@
     .empty-slot td { background-color: #ffffff; color: #94a3b8; }
 
     .table-scroll-container { max-height: 60vh; overflow-y: auto; }
-    /* 제목 줄 배경색 제거 및 선명도 유지 */
     .table-scroll-container thead th { 
       position: sticky; top: 0; z-index: 2; 
       background-color: #ffffff; 
@@ -60,7 +69,6 @@
     body.printing #mainApp, body.printing #loginScreen { display: none !important; }
     body.printing #printOverlay { display: block; }
 
-    /* 미리보기 화면이 A4 용지처럼 보이도록 스타일링 */
     #printContent { 
       max-width: 210mm; margin: 20px auto; background-color: #fff; 
       box-shadow: 0 4px 10px rgba(0,0,0,0.15); padding: 25mm 12mm 15mm 12mm; 
@@ -83,8 +91,15 @@
       body { background-color: #fff; margin: 0; padding: 0; color: #000; }
       body.printing #printOverlay { position: static; overflow: visible; display: block !important; background-color: #fff; }
       .print-controls { display: none !important; }
-      /* 실제 인쇄 시에는 그림자와 여백 제거 */
-      #printContent { padding: 0 !important; margin: 0 !important; max-width: none !important; box-shadow: none !important; }
+      
+      /* 실제 인쇄 시 98% 비율로 축소하여 우측 테두리 잘림 완벽 방지 */
+      #printContent { 
+        padding: 0 !important; margin: 0 auto !important; max-width: none !important; box-shadow: none !important; 
+        zoom: 0.98; /* 크롬/사파리 대응 인쇄 비율 축소 */
+        transform: scale(0.98); 
+        transform-origin: top left;
+        width: 102%; /* 축소된 만큼 너비 보정 */
+      }
     }
   </style>
 </head>
@@ -141,9 +156,8 @@
         </div>
       </div>
       <div class="table-responsive table-scroll-container">
-        <!-- 세로줄 추가를 위해 table-bordered 클래스 적용 -->
+        <!-- 세로줄 추가를 위해 table-bordered 유지 -->
         <table class="table table-hover table-bordered align-middle mb-0 text-center" style="min-width: 1000px;">
-          <!-- 제목 줄 배경색 제거를 위해 bg-white 클래스 적용 -->
           <thead class="bg-white">
             <tr>
               <th style="width: 95px; white-space: nowrap;">날짜</th>
@@ -334,6 +348,7 @@
   </div>
 </div>
 
+<!-- 인쇄용 오버레이 화면 -->
 <div id="printOverlay">
   <div class="print-controls sticky-top bg-dark text-white p-3 d-flex justify-content-between align-items-center shadow-sm">
     <h6 class="mb-0 fw-bold"><i class="bi bi-printer me-2"></i>인쇄 미리보기 (A4 세로)</h6>
@@ -359,12 +374,9 @@ const firebaseConfig = {
   appId: "1:755057910418:web:e468987e39dda55bc9fc4b"
 };
 
-// 파이어베이스 초기화 연결
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
-
-// === 시스템 전역 변수 ===
 let currentUserRole = null; 
 let currentUserName = "";
 let modal;
@@ -378,7 +390,6 @@ let suspendedOutlines = [];
 let brotherNames = []; 
 let outlineTitles = {};
 
-// 초기 셋업용 데이터 모음
 const defaultBrotherNames = ["강용호", "김가우", "김대성", "김선정", "김윤건", "김현유", "민경태", "박남섭", "박수현", "박인규", "서금모", "서성남", "서영석", "은지상", "이석재", "이정로", "이찬호", "임동수", "장세관", "정용기", "조건희", "조오진", "주범서", "지역환", "차재승", "한일봉"];
 const defaultOutlineTitles = {
   1: "당신은 하느님을 얼마나 잘 아는가?", 2: "당신은 마지막 날의 생존자가 될 것인가?", 3: "여호와의 연합된 조직과 함께 전진하라", 4: "우리 주위 세계에 나타나 있는 하느님에 대한 증거", 5: "행복한 가정생활을 위한 확실한 조언", 
@@ -423,9 +434,6 @@ const defaultOutlineTitles = {
 };
 const initialData = [];
 
-// ==========================================
-// PC 로컬스토리지 데이터를 파이어베이스로 옮기는 복구 함수
-// ==========================================
 function migrateLocalToFirebase() {
   if (!confirm("이 PC에 저장된 과거 데이터를 서버로 덮어씌워 복구하시겠습니까?")) return;
 
@@ -453,9 +461,6 @@ function migrateLocalToFirebase() {
   }
 }
 
-// ==========================================
-// 파이어베이스 실시간 동기화 설정 (데이터베이스 수신)
-// ==========================================
 database.ref('public_talks_app').on('value', (snapshot) => {
   const data = snapshot.val();
   
