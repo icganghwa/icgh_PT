@@ -22,8 +22,8 @@
 
   <style>
     :root {
-      --theme-blue: #4A74B5;
-      --theme-blue-hover: #3b5d91;
+      --theme-blue: #5b7fb5; /* 아이콘과 비슷한 차분한 블루톤으로 메인 테마 미세 조정 */
+      --theme-blue-hover: #4a6a9b;
     }
 
     body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif; }
@@ -51,7 +51,7 @@
     
     #loginScreen { background-color: #f1f5f9; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; display: flex; }
     .login-input { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
-    .login-input:focus { background-color: #ffffff; box-shadow: 0 0 0 3px rgba(74, 116, 181, 0.2); border-color: var(--theme-blue); }
+    .login-input:focus { background-color: #ffffff; box-shadow: 0 0 0 3px rgba(91, 127, 181, 0.2); border-color: var(--theme-blue); }
     .lh-sm { line-height: 1.25; }
 
     input[type="number"]::-webkit-outer-spin-button,
@@ -91,7 +91,7 @@
       body.printing #printOverlay { position: static; overflow: visible; display: block !important; background-color: #fff; }
       .print-controls { display: none !important; }
       
-      /* 선명한 1px Pure Black 테두리 및 99% 비율 보정 (우측 잘림 완벽 방지) */
+      /* 실제 인쇄 시 98% 비율로 축소하여 우측 테두리 잘림 완벽 방지 */
       #printContent { 
         padding: 0 !important; margin: 0 auto !important; max-width: 100% !important; box-shadow: none !important; 
         width: 99%; 
@@ -102,23 +102,45 @@
     }
   </style>
 
-  <!-- 스마트폰용 '강연' 아이콘을 기기에서 즉시 그려서 등록하는 스크립트 -->
+  <!-- 스마트폰용 '강연 + GANGHWA' 아이콘을 기기에서 즉시 그려서 등록하는 스크립트 -->
   <script>
     document.addEventListener("DOMContentLoaded", function() {
         const canvas = document.createElement('canvas');
         canvas.width = 512; canvas.height = 512;
         const ctx = canvas.getContext('2d');
         
-        // 파란색 배경
-        ctx.fillStyle = '#4A74B5';
-        ctx.fillRect(0, 0, 512, 512);
+        // 1. 부드러운 파란색 입체감 배경 (기존 앱 스타일 재현)
+        const gradient = ctx.createLinearGradient(0, 0, 0, 512);
+        gradient.addColorStop(0, '#759cd8'); // 상단 약간 밝은 파랑
+        gradient.addColorStop(1, '#4c6ea4'); // 하단 짙은 파랑
+        ctx.fillStyle = gradient;
         
-        // 하얀색 '강연' 텍스트
+        // 둥근 사각형 그리기
+        ctx.beginPath();
+        ctx.roundRect(0, 0, 512, 512, 115);
+        ctx.fill();
+
+        // 약간의 내부 그림자/하이라이트 효과 (상단 밝은 띠)
+        ctx.beginPath();
+        ctx.roundRect(0, 0, 512, 256, {tl: 115, tr: 115, bl: 0, br: 0});
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.fill();
+        
+        // 2. 메인 글자 '강연' (맑은 고딕 굵게)
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 200px "Malgun Gothic", sans-serif';
+        ctx.font = 'bold 180px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('강연', 256, 276);
+        // 그림자 살짝 추가해서 글자 선명하게
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetY = 2;
+        ctx.fillText('강연', 256, 230);
+        
+        // 3. 하단 작은 글자 'GANGHWA' (얇은 폰트 적용)
+        ctx.font = 'normal 65px "Segoe UI", "Apple SD Gothic Neo", sans-serif';
+        ctx.letterSpacing = '1px';
+        ctx.fillText('GANGHWA', 256, 390);
         
         const dataURL = canvas.toDataURL('image/png');
         
@@ -1169,33 +1191,29 @@ function closePrintView() {
 }
 
 // ==========================================
-// [신규] 앱 모드 대응 혁신적인 인쇄/공유 기능
+// 스마트폰 앱(Standalone) 모드 인쇄 우회 기능 (PDF 생성 후 공유)
 // ==========================================
 function triggerPrint() {
-  // 아이폰 홈 화면 앱(Standalone) 모드로 접속했는지 감지
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   
   if (isStandalone && typeof html2pdf !== 'undefined') {
-    // 앱 모드에서는 PDF로 변환 후 기본 [공유하기] 창 띄우기
     const element = document.getElementById('printContent');
     const controls = document.getElementById('printControlsBar');
     
-    // PDF 생성 중 버튼바 숨기기
     controls.style.display = 'none';
     
     const opt = {
-      margin: 10,
+      margin: [10, 5, 10, 5], 
       filename: '공개강연계획표.pdf',
       image: { type: 'jpeg', quality: 1 },
       html2canvas: { scale: 2, useCORS: true },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
     
-    alert("앱 모드에서는 직접 인쇄가 제한됩니다. 생성된 PDF를 스마트폰 [공유하기] 창을 통해 프린터로 보내거나 파일로 저장하세요.");
+    alert("앱 모드에서는 직접 인쇄가 제한되어 PDF 파일을 생성합니다. 생성 후 뜨는 공유 창에서 프린터로 보내거나 카톡으로 저장하세요.");
     
-    // PDF 생성 후 스마트폰 공유 기능 호출
     html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
-      controls.style.display = 'flex'; // 버튼바 원상복구
+      controls.style.display = 'flex'; 
       
       const file = new File([pdfBlob], '공개강연계획표.pdf', { type: 'application/pdf' });
       
@@ -1203,17 +1221,15 @@ function triggerPrint() {
         navigator.share({
           files: [file],
           title: '공개강연계획표',
-          text: '공개강연계획표 파일입니다.'
+          text: '강화 회중 공개강연 계획표 파일입니다.'
         }).catch((error) => console.log('공유 취소됨', error));
       } else {
-        // 공유 기능을 지원하지 않는 경우 다운로드 시도
         html2pdf().set(opt).from(element).save();
       }
     }).catch(function() {
-      controls.style.display = 'flex'; // 에러 시 버튼바 복구
+      controls.style.display = 'flex'; 
     });
   } else {
-    // 일반 사파리/크롬 브라우저에서는 기존처럼 깔끔하게 네이티브 인쇄
     window.print();
   }
 }
