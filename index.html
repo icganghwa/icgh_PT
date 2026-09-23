@@ -5,14 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>공개 강연 일정 관리 - 인천 강화 회중</title>
   
-  <!-- iOS 및 스마트폰 홈 화면(바탕화면) 앱 아이콘 및 전체화면 설정 -->
+  <!-- iOS 및 스마트폰 홈 화면(바탕화면) 앱 전체화면 설정 -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="강연 일정">
-  
-  <!-- '강연' 글자가 들어간 파란색 앱 아이콘 (코드 내장형) -->
-  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22><rect width=%22512%22 height=%22512%22 rx=%22115%22 fill=%22%234A74B5%22/><text x=%22256%22 y=%22345%22 font-size=%22190%22 font-family=%22'Apple SD Gothic Neo', sans-serif%22 font-weight=%22bold%22 fill=%22%23ffffff%22 text-anchor=%22middle%22>강연</text></svg>">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22><rect width=%22512%22 height=%22512%22 rx=%22115%22 fill=%22%234A74B5%22/><text x=%22256%22 y=%22345%22 font-size=%22190%22 font-family=%22'Apple SD Gothic Neo', sans-serif%22 font-weight=%22bold%22 fill=%22%23ffffff%22 text-anchor=%22middle%22>강연</text></svg>">
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -20,6 +16,9 @@
   <!-- Firebase SDK 추가 -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  
+  <!-- PDF 생성을 위한 외부 라이브러리 (앱 모드 인쇄 우회용) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <style>
     :root {
@@ -77,7 +76,7 @@
     #printContent h2 { text-align: center; margin-bottom: 5px; font-size: 16pt; font-weight: bold; color: #333; }
     #printContent .subtitle { text-align: right; margin-bottom: 4px; font-size: 9pt; font-weight: bold; color: #555; }
     #printContent table { width: 100%; border-collapse: collapse; font-size: 8.5pt; table-layout: fixed; line-height: 1.15; margin-top: 0px; margin-bottom: 20px; } 
-    #printContent th, #printContent td { border: 1px solid #444; padding: 2px 1px; text-align: center; vertical-align: middle; word-break: keep-all; box-sizing: border-box; } 
+    #printContent th, #printContent td { border: 1px solid #000; padding: 2px 1px; text-align: center; vertical-align: middle; word-break: keep-all; box-sizing: border-box; } 
     #printContent th { background-color: #ffffff !important; font-weight: bold; font-size: 8.5pt; padding: 4px 1px; height: 36px !important; }
     #printContent tr { height: 36px !important; page-break-inside: avoid; } 
     #printContent .date-col { font-size: 7.5pt; white-space: nowrap; }
@@ -87,21 +86,55 @@
     #printContent .page-break { page-break-after: always; }
 
     @media print {
-      @page { size: A4 portrait; margin: 25mm 12mm 15mm 12mm; } 
+      @page { size: A4 portrait; margin: 20mm 10mm; } 
       body { background-color: #fff; margin: 0; padding: 0; color: #000; }
       body.printing #printOverlay { position: static; overflow: visible; display: block !important; background-color: #fff; }
       .print-controls { display: none !important; }
       
-      /* 실제 인쇄 시 98% 비율로 축소하여 우측 테두리 잘림 완벽 방지 */
+      /* 선명한 1px Pure Black 테두리 및 99% 비율 보정 (우측 잘림 완벽 방지) */
       #printContent { 
-        padding: 0 !important; margin: 0 auto !important; max-width: none !important; box-shadow: none !important; 
-        zoom: 0.98; /* 크롬/사파리 대응 인쇄 비율 축소 */
-        transform: scale(0.98); 
-        transform-origin: top left;
-        width: 102%; /* 축소된 만큼 너비 보정 */
+        padding: 0 !important; margin: 0 auto !important; max-width: 100% !important; box-shadow: none !important; 
+        width: 99%; 
+      }
+      #printContent th, #printContent td {
+        border: 1px solid #000 !important; /* 흐릿한 회색선 제거, 진한 검은색 강제 */
       }
     }
   </style>
+
+  <!-- 스마트폰용 '강연' 아이콘을 기기에서 즉시 그려서 등록하는 스크립트 -->
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512; canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        
+        // 파란색 배경
+        ctx.fillStyle = '#4A74B5';
+        ctx.fillRect(0, 0, 512, 512);
+        
+        // 하얀색 '강연' 텍스트
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 200px "Malgun Gothic", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('강연', 256, 276);
+        
+        const dataURL = canvas.toDataURL('image/png');
+        
+        // 애플 기기 바탕화면용 아이콘 등록
+        const appleIcon = document.createElement('link');
+        appleIcon.rel = 'apple-touch-icon';
+        appleIcon.href = dataURL;
+        document.head.appendChild(appleIcon);
+        
+        // 브라우저 파비콘 등록
+        const favIcon = document.createElement('link');
+        favIcon.rel = 'icon';
+        favIcon.href = dataURL;
+        document.head.appendChild(favIcon);
+    });
+  </script>
 </head>
 <body>
 
@@ -350,7 +383,7 @@
 
 <!-- 인쇄용 오버레이 화면 -->
 <div id="printOverlay">
-  <div class="print-controls sticky-top bg-dark text-white p-3 d-flex justify-content-between align-items-center shadow-sm">
+  <div id="printControlsBar" class="print-controls sticky-top bg-dark text-white p-3 d-flex justify-content-between align-items-center shadow-sm">
     <h6 class="mb-0 fw-bold"><i class="bi bi-printer me-2"></i>인쇄 미리보기 (A4 세로)</h6>
     <div>
       <button class="btn btn-secondary btn-sm me-2 px-3 fw-bold" onclick="closePrintView()">취소 및 돌아가기</button>
@@ -1135,8 +1168,54 @@ function closePrintView() {
   document.getElementById('printContent').innerHTML = '';
 }
 
+// ==========================================
+// [신규] 앱 모드 대응 혁신적인 인쇄/공유 기능
+// ==========================================
 function triggerPrint() {
-  window.print();
+  // 아이폰 홈 화면 앱(Standalone) 모드로 접속했는지 감지
+  const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+  
+  if (isStandalone && typeof html2pdf !== 'undefined') {
+    // 앱 모드에서는 PDF로 변환 후 기본 [공유하기] 창 띄우기
+    const element = document.getElementById('printContent');
+    const controls = document.getElementById('printControlsBar');
+    
+    // PDF 생성 중 버튼바 숨기기
+    controls.style.display = 'none';
+    
+    const opt = {
+      margin: 10,
+      filename: '공개강연계획표.pdf',
+      image: { type: 'jpeg', quality: 1 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    
+    alert("앱 모드에서는 직접 인쇄가 제한됩니다. 생성된 PDF를 스마트폰 [공유하기] 창을 통해 프린터로 보내거나 파일로 저장하세요.");
+    
+    // PDF 생성 후 스마트폰 공유 기능 호출
+    html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
+      controls.style.display = 'flex'; // 버튼바 원상복구
+      
+      const file = new File([pdfBlob], '공개강연계획표.pdf', { type: 'application/pdf' });
+      
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({
+          files: [file],
+          title: '공개강연계획표',
+          text: '공개강연계획표 파일입니다.'
+        }).catch((error) => console.log('공유 취소됨', error));
+      } else {
+        // 공유 기능을 지원하지 않는 경우 다운로드 시도
+        html2pdf().set(opt).from(element).save();
+      }
+    }).catch(function() {
+      controls.style.display = 'flex'; // 에러 시 버튼바 복구
+    });
+  } else {
+    // 일반 사파리/크롬 브라우저에서는 기존처럼 깔끔하게 네이티브 인쇄
+    window.print();
+  }
 }
 </script>
 </body>
