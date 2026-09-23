@@ -22,7 +22,7 @@
 
   <style>
     :root {
-      --theme-blue: #5b7fb5; /* 아이콘과 비슷한 차분한 블루톤으로 메인 테마 미세 조정 */
+      --theme-blue: #5b7fb5; 
       --theme-blue-hover: #4a6a9b;
     }
 
@@ -49,7 +49,7 @@
       vertical-align: middle; 
     }
     
-    #loginScreen { background-color: #f1f5f9; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; display: flex; }
+    #loginScreen, #loadingScreen { background-color: #f1f5f9; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; display: flex; }
     .login-input { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
     .login-input:focus { background-color: #ffffff; box-shadow: 0 0 0 3px rgba(91, 127, 181, 0.2); border-color: var(--theme-blue); }
     .lh-sm { line-height: 1.25; }
@@ -65,7 +65,7 @@
       display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
       background-color: #e2e8f0; z-index: 99999; overflow-y: auto; -webkit-overflow-scrolling: touch;
     }
-    body.printing #mainApp, body.printing #loginScreen { display: none !important; }
+    body.printing #mainApp, body.printing #loginScreen, body.printing #loadingScreen { display: none !important; }
     body.printing #printOverlay { display: block; }
 
     #printContent { 
@@ -91,66 +91,56 @@
       body.printing #printOverlay { position: static; overflow: visible; display: block !important; background-color: #fff; }
       .print-controls { display: none !important; }
       
-      /* 실제 인쇄 시 98% 비율로 축소하여 우측 테두리 잘림 완벽 방지 */
       #printContent { 
         padding: 0 !important; margin: 0 auto !important; max-width: 100% !important; box-shadow: none !important; 
         width: 99%; 
       }
       #printContent th, #printContent td {
-        border: 1px solid #000 !important; /* 흐릿한 회색선 제거, 진한 검은색 강제 */
+        border: 1px solid #000 !important; 
       }
     }
   </style>
 
-  <!-- 스마트폰용 '강연 + GANGHWA' 아이콘을 기기에서 즉시 그려서 등록하는 스크립트 -->
   <script>
     document.addEventListener("DOMContentLoaded", function() {
         const canvas = document.createElement('canvas');
         canvas.width = 512; canvas.height = 512;
         const ctx = canvas.getContext('2d');
         
-        // 1. 부드러운 파란색 입체감 배경 (기존 앱 스타일 재현)
         const gradient = ctx.createLinearGradient(0, 0, 0, 512);
-        gradient.addColorStop(0, '#759cd8'); // 상단 약간 밝은 파랑
-        gradient.addColorStop(1, '#4c6ea4'); // 하단 짙은 파랑
+        gradient.addColorStop(0, '#759cd8'); 
+        gradient.addColorStop(1, '#4c6ea4'); 
         ctx.fillStyle = gradient;
         
-        // 둥근 사각형 그리기
         ctx.beginPath();
         ctx.roundRect(0, 0, 512, 512, 115);
         ctx.fill();
 
-        // 약간의 내부 그림자/하이라이트 효과 (상단 밝은 띠)
         ctx.beginPath();
         ctx.roundRect(0, 0, 512, 256, {tl: 115, tr: 115, bl: 0, br: 0});
         ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
         ctx.fill();
         
-        // 2. 메인 글자 '강연' (맑은 고딕 굵게)
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 180px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        // 그림자 살짝 추가해서 글자 선명하게
         ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
         ctx.shadowBlur = 4;
         ctx.shadowOffsetY = 2;
         ctx.fillText('강연', 256, 230);
         
-        // 3. 하단 작은 글자 'GANGHWA' (얇은 폰트 적용)
         ctx.font = 'normal 65px "Segoe UI", "Apple SD Gothic Neo", sans-serif';
         ctx.letterSpacing = '1px';
         ctx.fillText('GANGHWA', 256, 390);
         
         const dataURL = canvas.toDataURL('image/png');
         
-        // 애플 기기 바탕화면용 아이콘 등록
         const appleIcon = document.createElement('link');
         appleIcon.rel = 'apple-touch-icon';
         appleIcon.href = dataURL;
         document.head.appendChild(appleIcon);
         
-        // 브라우저 파비콘 등록
         const favIcon = document.createElement('link');
         favIcon.rel = 'icon';
         favIcon.href = dataURL;
@@ -160,7 +150,7 @@
 </head>
 <body>
 
-<!-- 로그인 화면 -->
+<!-- 1. 로그인 화면 -->
 <div id="loginScreen" class="justify-content-center align-items-center">
   <div class="card shadow-sm border-0" style="width: 100%; max-width: 360px; border-radius: 16px; overflow: hidden;">
     <div class="text-center text-white py-4" style="background-color: var(--theme-blue);">
@@ -181,7 +171,21 @@
   </div>
 </div>
 
-<!-- 메인 애플리케이션 화면 -->
+<!-- 2. 로그인 완료 후 표시되는 가로모드 안내 로딩 화면 -->
+<div id="loadingScreen" class="justify-content-center align-items-center" style="display: none;">
+  <div class="card shadow-lg border-0" style="width: 100%; max-width: 360px; border-radius: 16px; overflow: hidden;">
+    <!-- 파란색 바탕 박스 안에 흰색 글자 -->
+    <div class="text-center text-white py-5 px-4" style="background-color: var(--theme-blue);">
+      <i class="bi bi-phone-landscape fs-1 mb-3 d-block"></i>
+      <h5 class="fw-bold mb-2 lh-base" style="word-break: keep-all; font-size: 1.1rem;">이 프로그램은 스마트폰의<br>가로 모드에 최적화 되어 있습니다.</h5>
+      <div class="spinner-border text-light mt-4" role="status" style="width: 1.5rem; height: 1.5rem; opacity: 0.8;">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 3. 메인 애플리케이션 화면 -->
 <div id="mainApp" class="py-4" style="display: none;">
   <div class="container-fluid px-4">
     <div class="mb-4 pb-2 border-bottom text-center">
@@ -189,7 +193,7 @@
       <p class="text-muted mb-0">강연 제목과 초대 연사를 손쉽게 관리하세요.</p>
     </div>
 
-    <!-- 1. 공개 강연 일정 목록 뷰 -->
+    <!-- 공개 강연 일정 목록 뷰 -->
     <div id="talkListView" class="card shadow-sm border-0 mb-4">
       <div class="card-header card-header-custom py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-semibold"><i class="bi bi-table me-2"></i>공개 강연 계획표</h5>
@@ -211,7 +215,6 @@
         </div>
       </div>
       <div class="table-responsive table-scroll-container">
-        <!-- 세로줄 추가를 위해 table-bordered 유지 -->
         <table class="table table-hover table-bordered align-middle mb-0 text-center" style="min-width: 1000px;">
           <thead class="bg-white">
             <tr>
@@ -235,7 +238,7 @@
       </div>
     </div>
 
-    <!-- 2. 사용자 관리 및 형제 명단 관리 뷰 -->
+    <!-- 사용자 관리 및 형제 명단 관리 뷰 -->
     <div id="userManageView" class="card shadow-sm border-0" style="display: none;">
       <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-semibold"><i class="bi bi-gear-fill me-2"></i>사용자 및 담당자 관리</h5>
@@ -565,6 +568,10 @@ document.addEventListener("DOMContentLoaded", () => {
   if(savedRole && savedName) {
       currentUserRole = savedRole;
       currentUserName = savedName;
+      
+      // 이미 로그인 되어있는 상태면 로딩 애니메이션 없이 바로 메인 띄움
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('mainApp').style.display = 'block';
       applyRoleUI();
   }
 });
@@ -591,9 +598,21 @@ function doLogin() {
       return;
   }
 
-  sessionStorage.setItem('userRole', currentUserRole);
-  sessionStorage.setItem('userName', currentUserName);
-  applyRoleUI();
+  // 로그인 창을 숨기고 2초간 안내 로딩 창 띄우기
+  document.getElementById('loginScreen').style.display = 'none';
+  const loadingScreen = document.getElementById('loadingScreen');
+  loadingScreen.style.display = 'flex';
+  
+  setTimeout(() => {
+    // 2초 후 로딩 창 숨기고 메인 UI 세팅
+    loadingScreen.style.display = 'none';
+    
+    sessionStorage.setItem('userRole', currentUserRole);
+    sessionStorage.setItem('userName', currentUserName);
+    
+    document.getElementById('mainApp').style.display = 'block';
+    applyRoleUI();
+  }, 2000);
 }
 
 function doLogout() {
@@ -609,9 +628,6 @@ function doLogout() {
 }
 
 function applyRoleUI() {
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('mainApp').style.display = 'block';
-
   const topToolbar = document.getElementById('topToolbar');
   const bottomToolbar = document.getElementById('bottomToolbar');
   const roleBadgeStr = document.getElementById('roleBadgeStr');
