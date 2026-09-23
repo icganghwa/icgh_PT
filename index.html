@@ -81,55 +81,42 @@
     /* =========================================
        [인쇄 및 PDF 내보내기 전용 스타일]
        ========================================= */
-    @media screen {
-      #printArea { display: none; }
+    #printOverlay {
+      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #fff; z-index: 99999; overflow-y: auto;
     }
-    @media print {
-      /* 기존 앱 화면 완벽히 숨김 */
-      body.printing-pdf { background-color: #fff; margin: 0; padding: 0; }
-      body.printing-pdf #loginScreen, 
-      body.printing-pdf #mainApp, 
-      body.printing-pdf .modal, 
-      body.printing-pdf .modal-backdrop { display: none !important; }
-      
-      /* 인쇄 영역만 활성화 */
-      body.printing-pdf #printArea { display: block !important; width: 100%; }
-      
-      /* A4 여백 설정 (우측 잘림 방지를 위해 좌우 10mm로 약간 여유 확보) */
-      @page { size: A4 portrait; margin: 25mm 10mm 15mm 10mm; } 
-      
-      body.printing-pdf #printArea h2 { text-align: center; margin-bottom: 5px; font-size: 16pt; font-weight: bold; color: #333; }
-      body.printing-pdf #printArea .subtitle { text-align: right; margin-bottom: 4px; font-size: 9pt; font-weight: bold; color: #555; }
-      
-      body.printing-pdf #printArea table { 
-        width: 100%; border-collapse: collapse; font-size: 8.5pt; table-layout: fixed; line-height: 1.15; margin-top: 0px; margin-bottom: 20px; 
-      } 
-      body.printing-pdf #printArea th, 
-      body.printing-pdf #printArea td { 
-        border: 1px solid #444; padding: 2px 1px; text-align: center; vertical-align: middle; word-break: keep-all; box-sizing: border-box; 
-      } 
-      
-      /* 배경색이 PDF에 나오도록 강제 설정 */
-      body.printing-pdf #printArea th { 
-        background-color: #f1f5f9 !important; font-weight: bold; font-size: 8.5pt; height: 36px !important; 
-        -webkit-print-color-adjust: exact; print-color-adjust: exact; 
-      }
-      
-      body.printing-pdf #printArea tr { height: 36px !important; page-break-inside: avoid; } 
-      
-      body.printing-pdf #printArea .date-col { font-size: 7.5pt; white-space: nowrap; }
-      body.printing-pdf #printArea .title-col { 
-        text-align: center; font-weight: normal; font-size: 10pt; letter-spacing: -0.5px; 
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
-      }
-      
-      body.printing-pdf #printArea .special-bold { font-weight: bold !important; color: #000 !important; }
-      body.printing-pdf #printArea .special-event td { 
-        background-color: #f8fafc !important; 
-        -webkit-print-color-adjust: exact; print-color-adjust: exact; 
-      }
+    
+    /* 인쇄 미리보기 모드일 때 메인 앱 숨기기 */
+    body.printing #mainApp, body.printing #loginScreen { display: none !important; }
+    body.printing #printOverlay { display: block; }
 
-      body.printing-pdf #printArea .page-break { page-break-after: always; }
+    @media print {
+      /* A4 여백 설정 (상단 여백을 주어 중앙 정렬 유도) */
+      @page { size: A4 portrait; margin: 25mm 12mm 15mm 12mm; } 
+      
+      body { font-family: 'Malgun Gothic', sans-serif; background-color: #fff; margin: 0; padding: 0; color: #000; }
+      body.printing #printOverlay { position: static; overflow: visible; display: block !important; }
+      
+      /* 실제 인쇄 시 컨트롤바(버튼들) 숨김 */
+      .print-controls { display: none !important; }
+      #printContent { padding: 0 !important; }
+      
+      #printContent h2 { text-align: center; margin-bottom: 5px; font-size: 16pt; font-weight: bold; color: #333; }
+      #printContent .subtitle { text-align: right; margin-bottom: 4px; font-size: 9pt; font-weight: bold; color: #555; }
+      #printContent table { width: 100%; border-collapse: collapse; font-size: 8.5pt; table-layout: fixed; line-height: 1.15; margin-top: 0px; margin-bottom: 20px; } 
+      #printContent th, #printContent td { border: 1px solid #444; padding: 2px 1px; text-align: center; vertical-align: middle; word-break: keep-all; box-sizing: border-box; } 
+      
+      /* 배경색 강제 인쇄 설정 */
+      #printContent th { background-color: #f1f5f9 !important; font-weight: bold; font-size: 8.5pt; padding: 4px 1px; height: 36px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      #printContent tr { height: 36px !important; page-break-inside: avoid; } 
+      
+      #printContent .date-col { font-size: 7.5pt; white-space: nowrap; }
+      #printContent .title-col { text-align: center; font-weight: normal; font-size: 10pt; letter-spacing: -0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      
+      #printContent .special-bold { font-weight: bold !important; color: #000 !important; }
+      #printContent .special-event td { background-color: #f8fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+      #printContent .page-break { page-break-after: always; }
     }
   </style>
 </head>
@@ -177,7 +164,7 @@
         </div>
       </div>
       
-      <!-- 상단 툴바 (검색창 + 내보내기/사용자관리/로그아웃) -->
+      <!-- 상단 툴바 -->
       <div class="card-body bg-white border-bottom py-3">
         <div class="row g-3 align-items-center">
           <div class="col-md-6 col-lg-7">
@@ -186,7 +173,7 @@
               <input type="text" id="searchInput" class="form-control border-start-0 ps-0" placeholder="제목, 연사명, 회중, 사회, 낭독, 기도, 마이크 이름 검색..." onkeyup="renderTable()">
             </div>
           </div>
-          <!-- 데스크탑 우측 정렬, 모바일 좌측 정렬 및 자동 줄바꿈(flex-wrap) 적용 -->
+          <!-- 데스크탑 우측 정렬, 모바일 좌측 정렬 -->
           <div class="col-md-6 col-lg-5 d-flex justify-content-md-end justify-content-start align-items-center gap-2 flex-wrap" id="topToolbar">
             <!-- JS 동적 렌더링 -->
           </div>
@@ -216,7 +203,7 @@
         </table>
       </div>
 
-      <!-- 하단 툴바 (공개강연목록 / 일정추가 / 초기화) -->
+      <!-- 하단 툴바 -->
       <div class="card-footer bg-white py-3 border-top d-flex justify-content-end gap-2 flex-wrap" id="bottomToolbar">
         <!-- JS 동적 렌더링 -->
       </div>
@@ -414,6 +401,23 @@
   </div>
 </div>
 
+<!-- ==============================================
+     [신규 기능] 인쇄/PDF 저장용 오버레이 화면 
+     ============================================== -->
+<div id="printOverlay">
+  <!-- 인쇄 모드 상단 조작 버튼바 (실제 인쇄 시 숨겨짐) -->
+  <div class="print-controls sticky-top bg-dark text-white p-3 d-flex justify-content-between align-items-center shadow-sm">
+    <h6 class="mb-0 fw-bold"><i class="bi bi-printer me-2"></i>인쇄 미리보기 (A4 세로)</h6>
+    <div>
+      <button class="btn btn-secondary btn-sm me-2 px-3 fw-bold" onclick="closePrintView()">취소 및 돌아가기</button>
+      <button class="btn btn-primary btn-sm px-4 fw-bold" onclick="triggerPrint()">실제 인쇄 / PDF 저장</button>
+    </div>
+  </div>
+  
+  <!-- 실제 인쇄될 A4 내용 영역 -->
+  <div id="printContent" class="p-4 p-md-5"></div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 // === 시스템 변수 선언 ===
@@ -508,7 +512,7 @@ document.addEventListener("DOMContentLoaded", () => {
   
   let savedSuspended = localStorage.getItem('suspended_outlines_v1');
   if (savedSuspended) {
-      suspendedOutlines = JSON.parse(savedSuspended);
+      suspendedOutlines = JSON.parse(suspendedOutlines);
   }
 
   let savedUsers = localStorage.getItem('allowed_users_v1');
@@ -627,7 +631,6 @@ function applyRoleUI() {
   renderTable();
 }
 
-// === 자동완성(Datalist) 업데이트 함수 ===
 function updateDatalist() {
   const datalist = document.getElementById('brothersDatalist');
   datalist.innerHTML = '';
@@ -638,7 +641,6 @@ function updateDatalist() {
   });
 }
 
-// === 전체 공개 강연 목록 관리 ===
 function saveOutlineData() {
   localStorage.setItem('outline_titles_dynamic_v2', JSON.stringify(outlineTitles));
 }
@@ -742,7 +744,6 @@ function switchView(viewId) {
   }
 }
 
-// === 사용자 관리 로직 ===
 function renderUserManage() {
   const tbody = document.getElementById('userTableBody');
   tbody.innerHTML = '';
@@ -809,7 +810,6 @@ function removeUser(idx) {
   }
 }
 
-// === 담당 형제(드롭다운용) 명단 관리 로직 ===
 function renderBrotherManage() {
   const tbody = document.getElementById('brotherTableBody');
   tbody.innerHTML = '';
@@ -858,7 +858,6 @@ function removeBrother(idx) {
   }
 }
 
-// === 시스템 기능 로직 ===
 function saveToLocalStorage() {
   localStorage.setItem('public_talks_final_v6', JSON.stringify(lectures));
 }
@@ -1179,11 +1178,11 @@ function deleteLecture(index) {
   }
 }
 
-// === 현재 화면을 인쇄용으로 전환하여 iOS 오류를 방지하는 내보내기 기능 ===
+// ==========================================
+// [신규 기능] iOS 대응 인쇄 미리보기 화면 제어
+// ==========================================
 function exportToPDF() {
   let html = '';
-  
-  // 데이터를 22개 단위로 분할(Chunking)
   let chunks = [];
   for (let i = 0; i < displayList.length; i += 22) {
       chunks.push(displayList.slice(i, i + 22));
@@ -1197,9 +1196,9 @@ function exportToPDF() {
         <thead>
           <tr>
             <th style="width: 8%;">날짜</th>
-            <th style="width: 43%;">제목</th>
+            <th style="width: 44%;">제목</th>
             <th style="width: 8%;">연사</th>
-            <th style="width: 11%;">회중</th>
+            <th style="width: 10%;">회중</th>
             <th style="width: 7.5%;">사회</th>
             <th style="width: 7.5%;">낭독</th>
             <th style="width: 7.5%;">기도</th>
@@ -1242,27 +1241,22 @@ function exportToPDF() {
     }
   });
 
-  // 오버레이용 printArea 생성 및 HTML 삽입
-  let printArea = document.getElementById('printArea');
-  if (!printArea) {
-    printArea = document.createElement('div');
-    printArea.id = 'printArea';
-    document.body.appendChild(printArea);
-  }
-  printArea.innerHTML = html;
+  document.getElementById('printContent').innerHTML = html;
   
-  // 브라우저 렌더링 후 인쇄 다이얼로그 호출
-  document.body.classList.add('printing-pdf');
-  
-  setTimeout(() => {
-    window.print();
-    
-    // 인쇄 창이 닫힌 후 원래 화면으로 복구
-    setTimeout(() => {
-      document.body.classList.remove('printing-pdf');
-      printArea.innerHTML = '';
-    }, 1000);
-  }, 250);
+  // 앱 화면 숨기고 오버레이 띄우기
+  document.body.classList.add('printing');
+  window.scrollTo(0, 0);
+}
+
+// 오버레이 취소 버튼
+function closePrintView() {
+  document.body.classList.remove('printing');
+  document.getElementById('printContent').innerHTML = '';
+}
+
+// 파란색 [실제 인쇄] 버튼 누르면 네이티브 인쇄창 호출
+function triggerPrint() {
+  window.print();
 }
 </script>
 </body>
