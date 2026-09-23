@@ -7,7 +7,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   
-  <!-- Firebase SDK 추가 (가장 중요) -->
+  <!-- Firebase SDK 추가 -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
@@ -146,7 +146,11 @@
     <div id="userManageView" class="card shadow-sm border-0" style="display: none;">
       <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-semibold"><i class="bi bi-gear-fill me-2"></i>사용자 및 담당자 관리</h5>
-        <button class="btn btn-sm btn-light fw-bold" onclick="switchView('talkListView')"><i class="bi bi-arrow-return-left me-1"></i>돌아가기</button>
+        <div>
+          <!-- 복구 버튼 추가 -->
+          <button class="btn btn-sm btn-warning fw-bold me-2" onclick="migrateLocalToFirebase()"><i class="bi bi-cloud-arrow-up-fill me-1"></i>기존 데이터 복구 (PC→서버)</button>
+          <button class="btn btn-sm btn-light fw-bold" onclick="switchView('talkListView')"><i class="bi bi-arrow-return-left me-1"></i>돌아가기</button>
+        </div>
       </div>
       <div class="card-body bg-white p-4">
         <div class="row g-5">
@@ -321,7 +325,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 // ==========================================
-// 1. 여기에 발급받은 Firebase Config 코드를 붙여넣으세요!
+// 1. 여기에 발급받은 Firebase Config 코드를 꼭 붙여넣으세요!
 // ==========================================
 const firebaseConfig = {
   apiKey: "AIzaSyApZWpHsA3VyArChMcnGPWNeW4-2LDjX5U",
@@ -394,10 +398,37 @@ const defaultOutlineTitles = {
   186: "하느님의 행복한 백성과 연합하십시오", 187: "사랑의 하느님께서 왜 악을 허용하시는가?", 188: "당신은 여호와께 확신을 두고 있는가?", 189: "하느님과 함께 걸으면 지금부터 영원히 축복을 받는다", 190: "하느님께서 약속하신 완전하고 행복한 가정", 
   191: "사랑과 믿음이 세상을 이기는 방법", 192: "당신은 영원한 생명에 이르는 길을 걷고 있는가?", 193: "세계적 고난의 때에 있을 구출", 194: "경건한 지혜는 우리에게 어떻게 유익을 주는가?"
 };
-const initialData = [
-  { date: "09월 06일", outlineNo: 3, title: "여호와의 연합된 조직과 함께 전진하라", speaker: "강용호", congregation: "인천 심곡", chairman: "서영석", reader: "김윤건", prayer: "강용호", mic1: "서금모", mic2: "김가우" },
-  { date: "09월 13일", outlineNo: 68, title: "“계속 ··· 서로 기꺼이 용서하십시오”", speaker: "은지상", congregation: "고양 동부", chairman: "서성남", reader: "이정로", prayer: "박수현", mic1: "박남섭", mic2: "주범서" }
-];
+const initialData = [];
+
+// ==========================================
+// [신규] PC 로컬스토리지 데이터를 파이어베이스로 옮기는 복구 함수
+// ==========================================
+function migrateLocalToFirebase() {
+  if (!confirm("이 PC에 저장된 과거 데이터를 서버로 덮어씌워 복구하시겠습니까?")) return;
+
+  let hasData = false;
+  const localLectures = localStorage.getItem('public_talks_final_v6');
+  const localOutlines = localStorage.getItem('outline_titles_dynamic_v2');
+  const localSuspended = localStorage.getItem('suspended_outlines_v1');
+  const localUsers = localStorage.getItem('allowed_users_v1');
+  const localBrothers = localStorage.getItem('brothers_list_v1');
+
+  if(localLectures) { lectures = JSON.parse(localLectures); hasData = true; }
+  if(localOutlines) { outlineTitles = JSON.parse(localOutlines); hasData = true; }
+  if(localSuspended) { suspendedOutlines = JSON.parse(localSuspended); hasData = true; }
+  if(localUsers) { allowedUsers = JSON.parse(localUsers); hasData = true; }
+  if(localBrothers) { brotherNames = JSON.parse(localBrothers); hasData = true; }
+
+  if(hasData) {
+    saveToFirebase();
+    alert("✅ 기존 데이터가 성공적으로 서버에 복원되었습니다! 이제 스마트폰에서도 보입니다.");
+    renderTable();
+    renderUserManage();
+    renderBrotherManage();
+  } else {
+    alert("이 PC에는 복원할 과거 데이터가 없습니다. 이전에 데이터를 입력했던 정확한 PC와 브라우저인지 확인해 주세요.");
+  }
+}
 
 // ==========================================
 // 파이어베이스 실시간 동기화 설정 (데이터베이스 수신)
@@ -406,23 +437,20 @@ database.ref('public_talks_app').on('value', (snapshot) => {
   const data = snapshot.val();
   
   if (data) {
-    // 파이어베이스에 데이터가 존재하면 불러오기
     lectures = data.lectures || [];
     outlineTitles = data.outlineTitles || defaultOutlineTitles;
     suspendedOutlines = data.suspendedOutlines || [];
     allowedUsers = data.allowedUsers || [];
     brotherNames = data.brotherNames || defaultBrotherNames;
   } else {
-    // 최초 실행 시 (파이어베이스가 비어있을 때) 기본 데이터 세팅
     lectures = JSON.parse(JSON.stringify(initialData));
     outlineTitles = JSON.parse(JSON.stringify(defaultOutlineTitles));
     brotherNames = [...defaultBrotherNames];
-    saveToFirebase(); // 초기 데이터 파이어베이스에 밀어넣기
+    saveToFirebase(); 
   }
   
   updateDatalist(); 
   
-  // 데이터가 업데이트 될 때 로그인되어 있다면 화면을 즉시 리렌더링
   if (currentUserRole) {
     if (document.getElementById('talkListView').style.display !== 'none') {
        renderTable();
@@ -434,7 +462,6 @@ database.ref('public_talks_app').on('value', (snapshot) => {
   }
 });
 
-// 파이어베이스에 데이터를 저장하는 함수 (로컬스토리지 대체)
 function saveToFirebase() {
   database.ref('public_talks_app').set({
     lectures: lectures,
@@ -451,7 +478,6 @@ document.addEventListener("DOMContentLoaded", () => {
   resetModal = new bootstrap.Modal(document.getElementById('resetModal'));
   outlineListModal = new bootstrap.Modal(document.getElementById('outlineListModal'));
   
-  // 로그인 정보는 브라우저(스마트폰 기기)마다 유지되도록 세션/로컬 그대로 사용
   const savedRole = sessionStorage.getItem('userRole');
   const savedName = sessionStorage.getItem('userName');
   if(savedRole && savedName) {
@@ -584,7 +610,7 @@ function toggleSuspend(num) {
   const idx = suspendedOutlines.indexOf(num);
   if (idx > -1) { suspendedOutlines.splice(idx, 1); } 
   else { suspendedOutlines.push(num); }
-  saveToFirebase(); // Firebase 연동
+  saveToFirebase(); 
   openOutlineModal(); 
 }
 
@@ -600,7 +626,7 @@ function addNewOutline() {
   if (!title) return;
   
   outlineTitles[num] = title.trim();
-  saveToFirebase(); // Firebase 연동
+  saveToFirebase(); 
   openOutlineModal(); 
 }
 
@@ -610,7 +636,7 @@ function editOutlineTitle(num) {
   
   if (newTitle !== null && newTitle.trim() !== '') {
       outlineTitles[num] = newTitle.trim();
-      saveToFirebase(); // Firebase 연동
+      saveToFirebase(); 
       openOutlineModal(); 
   }
 }
@@ -662,7 +688,7 @@ function addUser() {
   if (allowedUsers.includes(name)) { alert('이미 로그인 허용된 사용자입니다.'); return; }
   
   allowedUsers.push(name);
-  saveToFirebase(); // Firebase 연동
+  saveToFirebase(); 
   nameInput.value = '';
   document.getElementById('userValidationWarning').style.display = 'none';
 }
@@ -670,7 +696,7 @@ function addUser() {
 function removeUser(idx) {
   if (confirm(`'${allowedUsers[idx]}' 사용자를 로그인 목록에서 삭제하시겠습니까?`)) {
     allowedUsers.splice(idx, 1);
-    saveToFirebase(); // Firebase 연동
+    saveToFirebase(); 
   }
 }
 
@@ -700,7 +726,7 @@ function addBrother() {
   if (brotherNames.includes(name)) { alert('이미 드롭다운 명단에 등록된 이름입니다.'); return; }
   
   brotherNames.push(name);
-  saveToFirebase(); // Firebase 연동
+  saveToFirebase(); 
   nameInput.value = '';
 }
 
@@ -708,7 +734,7 @@ function removeBrother(idx) {
   const targetName = brotherNames[idx];
   if (confirm(`'${targetName}' 형제를 담당자 자동완성 목록에서 삭제하시겠습니까?`)) {
     brotherNames.splice(idx, 1);
-    saveToFirebase(); // Firebase 연동
+    saveToFirebase(); 
   }
 }
 
@@ -868,7 +894,7 @@ function executeReset() {
     if (!dObj) return true; 
     return dObj < today;
   });
-  saveToFirebase(); // Firebase 연동
+  saveToFirebase(); 
   resetModal.hide();
 }
 
@@ -998,7 +1024,7 @@ function saveLecture() {
   if (index === '-1' || index === '') lectures.push(newTalk);
   else lectures[index] = newTalk;
 
-  saveToFirebase(); // Firebase 연동
+  saveToFirebase(); 
   modal.hide();
 }
 
@@ -1006,7 +1032,7 @@ function deleteLecture(index) {
   const dateStr = lectures[index].date || "해당";
   if (confirm(`'${dateStr}' 일정을 삭제하시겠습니까?`)) {
     lectures.splice(index, 1);
-    saveToFirebase(); // Firebase 연동
+    saveToFirebase(); 
   }
 }
 
