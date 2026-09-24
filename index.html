@@ -49,6 +49,8 @@
       vertical-align: middle; 
     }
     
+    .schedule-table { min-width: 1000px; } /* PC 등 기본 표 최소 너비 */
+
     #loginScreen, #loadingScreen { background-color: #f1f5f9; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; display: flex; }
     .login-input { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
     .login-input:focus { background-color: #ffffff; box-shadow: 0 0 0 3px rgba(91, 127, 181, 0.2); border-color: var(--theme-blue); }
@@ -97,6 +99,32 @@
         width: 99%; 
       }
       #printContent th, #printContent td { border: 1px solid #000 !important; }
+    }
+
+    /* =========================================
+       [신규] 스마트폰 가로 모드(Landscape) 전용 최적화 
+       ========================================= */
+    @media screen and (max-width: 950px) and (orientation: landscape) {
+      /* 불필요한 바깥 여백 대폭 축소하여 공간 확보 */
+      .py-4 { padding-top: 0.3rem !important; padding-bottom: 0.3rem !important; }
+      .mb-4 { margin-bottom: 0.3rem !important; }
+      #topHeaderArea { margin-bottom: 0.2rem !important; padding-bottom: 0.2rem !important; }
+      #topHeaderArea p { display: none !important; } /* 가로에선 서브설명 숨김 */
+      
+      /* 헤더와 푸터 패딩 축소 */
+      .card-header-custom, .card-body, .card-footer { padding: 0.3rem 0.6rem !important; }
+      .card-header-custom h5 { font-size: 1rem !important; }
+      
+      /* 스크롤 영역을 화면 세로 끝까지 늘림 */
+      .table-scroll-container { max-height: 75vh !important; }
+      
+      /* 표 내부 요소 축소하여 더 많이 보이게 */
+      .schedule-table { min-width: 750px !important; font-size: 0.75rem !important; line-height: 1.1; }
+      .schedule-table th, .schedule-table td { padding: 0.15rem 0.1rem !important; }
+      .schedule-table .title-col { font-size: 0.85rem !important; }
+      
+      /* 뱃지(노란색 이름 강조) 축소 */
+      .schedule-table .badge { font-size: 0.7rem !important; padding: 0.15rem 0.3rem !important; }
     }
   </style>
 
@@ -230,7 +258,8 @@
         </div>
       </div>
       <div class="table-responsive table-scroll-container">
-        <table class="table table-hover table-bordered align-middle mb-0 text-center" style="min-width: 1000px;">
+        <!-- 표에 schedule-table 클래스 추가 -->
+        <table class="table table-hover table-bordered align-middle mb-0 text-center schedule-table">
           <thead class="bg-white">
             <tr>
               <th style="width: 100px; white-space: nowrap;">날짜</th>
@@ -549,7 +578,7 @@ function formatDateToISO(dateObj) {
   return `${y}-${m}-${d}`;
 }
 
-// [요청 반영] 화면 및 인쇄물에 출력되는 날짜 형태를 'MM월 DD일' 포맷으로 변경
+// 화면 및 인쇄물에 출력되는 날짜 형태를 'MM월 DD일' 포맷으로 표시
 function formatDisplayDate(dateStr) {
   const d = parseToDateObj(dateStr);
   if (!d) return dateStr;
@@ -1079,7 +1108,7 @@ function highlightName(name, isoDateStr) {
   }
 
   if (isFutureOrToday && currentUserRole === 'USER' && currentUserName && name.trim() === currentUserName.trim()) {
-    return `<span class="badge bg-warning text-dark fw-bold px-2 shadow-sm rounded-pill" style="font-size: 0.9rem; padding: 0.25rem 0.5rem;">${name}</span>`;
+    return `<span class="badge bg-warning text-dark fw-bold px-2 shadow-sm rounded-pill my-badge" style="font-size: 0.9rem; padding: 0.25rem 0.5rem;">${name}</span>`;
   }
   return `<span>${name}</span>`;
 }
