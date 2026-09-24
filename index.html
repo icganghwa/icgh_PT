@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>공개 강연 일정 관리 - 인천 강화 회중</title>
   
+  <!-- iOS 및 스마트폰 홈 화면(바탕화면) 앱 전체화면 설정 -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="강연 일정">
@@ -12,8 +13,11 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   
+  <!-- Firebase SDK 추가 -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  
+  <!-- PDF 생성을 위한 외부 라이브러리 (앱 모드 인쇄 우회용) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <style>
@@ -33,6 +37,7 @@
     .outline-text { font-size: 0.85rem; font-weight: 300; color: #475569; }
     .title-no-outline { font-weight: bold; font-style: italic; }
     
+    /* 배경색 전부 제거 (흰색 통일) */
     .special-event td { background-color: #ffffff; }
     .empty-slot td { background-color: #ffffff; color: #94a3b8; }
 
@@ -53,6 +58,9 @@
     input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     input[type="number"] { -moz-appearance: textfield; }
 
+    /* =========================================
+       [인쇄 및 PDF 내보내기 전용 스타일]
+       ========================================= */
     #printOverlay { 
       display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
       background-color: #e2e8f0; z-index: 99999; overflow-y: auto; -webkit-overflow-scrolling: touch;
@@ -92,6 +100,7 @@
     }
   </style>
 
+  <!-- 스마트폰 아이콘 동적 생성 스크립트 -->
   <script>
     document.addEventListener("DOMContentLoaded", function() {
         const canvas = document.createElement('canvas');
@@ -136,6 +145,7 @@
 </head>
 <body>
 
+<!-- 1. 로그인 화면 -->
 <div id="loginScreen" class="justify-content-center align-items-center">
   <div class="card shadow-sm border-0" style="width: 100%; max-width: 360px; border-radius: 16px; overflow: hidden;">
     <div class="text-center text-white py-4" style="background-color: var(--theme-blue);">
@@ -162,6 +172,7 @@
   </div>
 </div>
 
+<!-- 2. 기기 맞춤형 로딩 화면 -->
 <div id="loadingScreen" class="justify-content-center align-items-center" style="display: none;">
   <div class="card shadow-lg border-0" style="width: 100%; max-width: 360px; border-radius: 16px; overflow: hidden;">
     <div class="text-center text-white py-5 px-4" style="background-color: var(--theme-blue);">
@@ -180,1231 +191,7 @@
   </div>
 </div>
 
-<div id="mainApp" class="py-4" style="display: none;">
-  <div class="container-fluid px-4">
-    <div id="topHeaderArea" class="mb-4 pb-2 border-bottom text-center">
-      <h2 class="fw-bold mb-1" style="color: var(--theme-blue);"><i class="bi bi-calendar-week me-2"></i>공개 강연 일정 관리</h2>
-      <p class="text-muted mb-0" style="font-size: 0.85rem;">강연 제목과 초대 연사를 손쉽게 관리하세요.</p>
-    </div>
-
-    <!-- 1. 공개 강연 일정 목록 뷰 -->
-    <div id="talkListView" class="card shadow-sm border-0 mb-4">
-      <div class="card-header card-header-custom py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
-        <div class="d-flex align-items-center gap-3">
-          <h5 class="mb-0 fw-semibold"><i class="bi bi-table me-2"></i>공개 강연 계획표</h5>
-          <!-- [신규] 봉사 연도 선택 드롭다운 -->
-          <select id="yearSelect" class="form-select form-select-sm border-0 shadow-sm fw-bold text-dark" style="width: 150px; font-size: 0.85rem;" onchange="changeYear()">
-          </select>
-        </div>
-        <div class="text-end" style="line-height: 1.2;">
-          <div class="fw-semibold text-light opacity-75" style="font-size: 1rem;">인천 강화 회중</div>
-          <div id="roleBadgeStr" class="fw-bold mt-1" style="font-size: 0.85rem; color: #ffd700;"></div>
-        </div>
-      </div>
-      <div class="card-body bg-white border-bottom py-3">
-        <div class="row g-3 align-items-center">
-          <div class="col-md-6 col-lg-7">
-            <div class="input-group">
-              <span class="input-group-text bg-light border-end-0"><i class="bi bi-search"></i></span>
-              <input type="text" id="searchInput" class="form-control border-start-0 ps-0" placeholder="제목, 연사명, 회중, 사회, 낭독, 기도, 마이크 이름 검색..." onkeyup="renderTable()">
-            </div>
-          </div>
-          <div class="col-md-6 col-lg-5 d-flex justify-content-md-end justify-content-start align-items-center gap-2 flex-wrap" id="topToolbar">
-          </div>
-        </div>
-      </div>
-      <div class="table-responsive table-scroll-container">
-        <table class="table table-hover table-bordered align-middle mb-0 text-center" style="min-width: 1000px;">
-          <thead class="bg-white">
-            <tr>
-              <th style="width: 95px; white-space: nowrap;">날짜</th>
-              <th style="width: 70px;">번호</th>
-              <th class="text-center">제목</th>
-              <th style="width: 90px;">연사</th>
-              <th style="width: 100px;">회중</th>
-              <th style="width: 70px;">사회</th>
-              <th style="width: 70px;">낭독</th>
-              <th style="width: 70px;">기도</th>
-              <th style="width: 80px;">마이크</th>
-              <th id="manageHeader" style="width: 90px; display: none;">관리</th>
-            </tr>
-          </thead>
-          <tbody id="lectureTableBody">
-          </tbody>
-        </table>
-      </div>
-      <div class="card-footer bg-white py-3 border-top d-flex justify-content-end gap-2 flex-wrap" id="bottomToolbar">
-      </div>
-    </div>
-
-    <!-- 2. 사용자 관리 뷰 -->
-    <div id="userManageView" class="card shadow-sm border-0" style="display: none;">
-      <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
-        <h5 class="mb-0 fw-semibold"><i class="bi bi-gear-fill me-2"></i>사용자 및 담당자 관리</h5>
-        <div>
-          <button class="btn btn-sm btn-light fw-bold" onclick="switchView('talkListView')"><i class="bi bi-arrow-return-left me-1"></i>돌아가기</button>
-        </div>
-      </div>
-      <div class="card-body bg-white p-4">
-        <div class="row g-5">
-          <div class="col-md-6 border-end">
-            <h6 class="fw-bold text-primary mb-3"><i class="bi bi-person-lock me-2"></i>로그인 허용 사용자 관리</h6>
-            <p class="text-muted" style="font-size: 0.85rem;">여기에 등록된 이름과 공통 비밀번호(191435)로 일반 사용자가 로그인할 수 있습니다.</p>
-            <div class="input-group mb-2">
-              <input type="text" id="newUserName" class="form-control" placeholder="추가할 사용자 이름 (예: 홍길동)" oninput="checkUserValidation()" onkeypress="if(event.key === 'Enter') addUser()">
-              <button class="btn btn-primary px-3" id="addUserBtn" onclick="addUser()"><i class="bi bi-plus-lg me-1"></i>추가</button>
-            </div>
-            <div id="userValidationWarning" class="text-danger fw-bold mb-4" style="font-size: 0.8rem; display: none;">
-              <i class="bi bi-exclamation-circle me-1"></i>이름을 다시 확인해 주세요
-            </div>
-            <div class="mb-3"></div>
-            <div class="table-responsive" style="max-height: 360px; overflow-y: auto;">
-              <table class="table table-bordered table-hover align-middle text-center mb-0">
-                <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
-                  <tr>
-                    <th>사용자 이름 (로그인 ID)</th>
-                    <th style="width: 80px;">삭제</th>
-                  </tr>
-                </thead>
-                <tbody id="userTableBody">
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <h6 class="fw-bold text-success mb-3"><i class="bi bi-person-lines-fill me-2"></i>담당 형제 명단 관리 (드롭다운 용)</h6>
-            <p class="text-muted" style="font-size: 0.85rem;">일정 추가/수정 창에서 담당자를 선택할 수 있는 자동완성 목록입니다.</p>
-            <div class="input-group mb-4">
-              <input type="text" id="newBrotherName" class="form-control" placeholder="추가할 형제 이름 (예: 김철수)" onkeypress="if(event.key === 'Enter') addBrother()">
-              <button class="btn btn-success px-3" onclick="addBrother()"><i class="bi bi-plus-lg me-1"></i>추가</button>
-            </div>
-            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-              <table class="table table-bordered table-hover align-middle text-center mb-0">
-                <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
-                  <tr>
-                    <th>형제 이름</th>
-                    <th style="width: 80px;">삭제</th>
-                  </tr>
-                </thead>
-                <tbody id="brotherTableBody">
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- 모달 창들 -->
-<div class="modal fade" id="outlineListModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header" style="background-color: #f8f9fa;">
-        <h5 class="modal-title fw-bold" style="color: var(--theme-blue);"><i class="bi bi-list-ol me-2"></i>전체 공개 강연 목록</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body p-0">
-        <ul class="list-group list-group-flush" id="outlineListContainer"></ul>
-      </div>
-      <div class="modal-footer border-0 d-flex justify-content-end gap-2" style="background-color: #f8f9fa;">
-        <button type="button" class="btn btn-outline-primary px-3 fw-bold" id="btnAddOutline" onclick="addNewOutline()" style="display: none;"><i class="bi bi-plus-lg me-1"></i>강연 골자 추가</button>
-        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">닫기</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="modal fade" id="resetModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-sm">
-    <div class="modal-content">
-      <div class="modal-body text-center pt-4 pb-3">
-        <h6 class="fw-bold mb-0">정말로 모든 데이터를 초기화 하겠습니까?</h6>
-        <p class="text-muted mt-2 mb-0" style="font-size: 0.85rem;">현재 열람중인 연도의 데이터가 모두 지워집니다.</p>
-      </div>
-      <div class="modal-footer justify-content-center pb-3 pt-0 border-0 gap-2">
-        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">취소</button>
-        <button type="button" class="btn btn-danger px-4" onclick="executeReset()">확인</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="modal fade" id="lectureModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title fw-bold" id="modalTitle">강연 등록</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <form id="lectureForm">
-          <input type="hidden" id="editIndex">
-          <div class="row g-2 mb-3">
-            <div class="col-md-6">
-              <label class="form-label fw-semibold">날짜 <span class="text-muted fw-normal" style="font-size:0.75rem;">(달력 선택 가능)</span></label>
-              <!-- 스마트 입력 방식으로 업그레이드 -->
-              <input type="date" id="inputDate" class="form-control" oninput="handleDateInput()" required>
-              <div id="sundayWarning" class="form-text text-danger mt-1" style="display: none; font-weight: bold; font-size: 0.8rem;"><i class="bi bi-exclamation-circle me-1"></i>이 날짜는 일요일이 아닙니다</div>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label fw-semibold" style="color: var(--theme-blue);">강연 골자 번호</label>
-              <input type="number" id="inputOutlineNo" class="form-control" style="border-color: var(--theme-blue);" placeholder="번호 직접 입력" oninput="handleOutlineInput()" autocomplete="off">
-            </div>
-          </div>
-          <div class="mb-3">
-            <div id="suspendedWarning" class="form-text text-danger mb-1" style="display: none; font-weight: bold; font-size: 0.85rem;"><i class="bi bi-x-circle-fill me-1"></i>이 공개 강연 골자는 사용하지 않을 것입니다 (26년5월 광고 참고)</div>
-            <div id="recentWarning" class="form-text text-danger mb-1" style="display: none; font-weight: bold; font-size: 0.85rem;"></div>
-            <label class="form-label fw-semibold">제목</label>
-            <input type="text" id="inputTitle" class="form-control" placeholder="강연 제목 입력" required>
-            <div id="titleHelp" class="form-text text-success" style="display: none; font-size: 0.8rem;"><i class="bi bi-check-circle me-1"></i>번호에 맞는 제목 자동입력됨</div>
-          </div>
-          <div class="row g-2 mb-3 border-bottom pb-3">
-            <div class="col">
-              <label class="form-label fw-semibold">연사</label>
-              <input type="text" id="inputSpeaker" class="form-control" placeholder="연사 성명">
-            </div>
-            <div class="col">
-              <label class="form-label fw-semibold">회중</label>
-              <input type="text" id="inputCongregation" class="form-control" placeholder="소속 회중">
-            </div>
-          </div>
-          <datalist id="brothersDatalist"></datalist>
-          <div class="row g-2 mb-3">
-            <div class="col-4">
-              <label class="form-label fw-semibold text-secondary" style="font-size: 0.9rem;">사회</label>
-              <input type="text" id="inputChairman" class="form-control form-control-sm" placeholder="직접입력/선택" list="brothersDatalist" autocomplete="off">
-            </div>
-            <div class="col-4">
-              <label class="form-label fw-semibold text-secondary" style="font-size: 0.9rem;">낭독</label>
-              <input type="text" id="inputReader" class="form-control form-control-sm" placeholder="직접입력/선택" list="brothersDatalist" autocomplete="off">
-            </div>
-            <div class="col-4">
-              <label class="form-label fw-semibold text-secondary" style="font-size: 0.9rem;">기도</label>
-              <input type="text" id="inputPrayer" class="form-control form-control-sm" placeholder="직접입력/선택" list="brothersDatalist" autocomplete="off">
-            </div>
-          </div>
-          <div class="row g-2">
-            <div class="col-6">
-              <label class="form-label fw-semibold text-secondary" style="font-size: 0.9rem;">마이크 1</label>
-              <input type="text" id="inputMic1" class="form-control form-control-sm" placeholder="직접입력/선택" list="brothersDatalist" autocomplete="off">
-            </div>
-            <div class="col-6">
-              <label class="form-label fw-semibold text-secondary" style="font-size: 0.9rem;">마이크 2</label>
-              <input type="text" id="inputMic2" class="form-control form-control-sm" placeholder="직접입력/선택" list="brothersDatalist" autocomplete="off">
-            </div>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer border-0">
-        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">취소</button>
-        <button type="button" class="btn btn-theme px-4" onclick="saveLecture()">저장</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="modal fade" id="assignmentAlertModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-sm">
-    <div class="modal-content border-0 shadow">
-      <div class="modal-body text-center p-4 pb-3">
-        <div id="assignmentAlertContent" class="mb-0"></div>
-      </div>
-      <div class="modal-footer border-0 justify-content-center pt-0 pb-4">
-        <button type="button" class="btn btn-dark px-4 rounded-pill fw-bold" data-bs-dismiss="modal">확인했습니다</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="printOverlay">
-  <div id="printControlsBar" class="print-controls sticky-top bg-dark text-white p-3 d-flex justify-content-between align-items-center shadow-sm">
-    <h6 class="mb-0 fw-bold"><i class="bi bi-printer me-2"></i>인쇄 미리보기 (A4 세로)</h6>
-    <div>
-      <button class="btn btn-secondary btn-sm me-2 px-3 fw-bold" onclick="closePrintView()">취소 및 돌아가기</button>
-      <button class="btn btn-primary btn-sm px-4 fw-bold" onclick="triggerPrint()">실제 인쇄 / PDF 저장</button>
-    </div>
-  </div>
-  <div id="printContent"></div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-// ==========================================
-// 1. 여기에 발급받은 Firebase Config 코드를 꼭 붙여넣으세요!
-// ==========================================
-const firebaseConfig = {
-  apiKey: "AIzaSyApZWpHsA3VyArChMcnGPWNeW4-2LDjX5U",
-  authDomain: "pt-ganghwa.firebaseapp.com",
-  projectId: "pt-ganghwa",
-  storageBucket: "pt-ganghwa.firebasestorage.app",
-  messagingSenderId: "755057910418",
-  appId: "1:755057910418:web:e468987e39dda55bc9fc4b"
-};
-
-firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
-
-let currentUserRole = null; 
-let currentUserName = "";
-let modal;
-let resetModal;
-let outlineListModal;
-
-let lectures = [];
-let displayList = [];
-let allowedUsers = []; 
-let suspendedOutlines = []; 
-let brotherNames = []; 
-let outlineTitles = {};
-let audioCtx;
-
-// 봉사 연도(9월 기준) 로직 계산
-let currentRealYear = new Date().getFullYear();
-let currentMonth = new Date().getMonth() + 1;
-let currentServiceYear = currentMonth >= 9 ? currentRealYear : currentRealYear - 1;
-let selectedYear = currentServiceYear;
-
-const defaultBrotherNames = ["강용호", "김가우", "김대성", "김선정", "김윤건", "김현유", "민경태", "박남섭", "박수현", "박인규", "서금모", "서성남", "서영석", "은지상", "이석재", "이정로", "이찬호", "임동수", "장세관", "정용기", "조건희", "조오진", "주범서", "지역환", "차재승", "한일봉"];
-const defaultOutlineTitles = {
-  1: "당신은 하느님을 얼마나 잘 아는가?", 2: "당신은 마지막 날의 생존자가 될 것인가?", 3: "여호와의 연합된 조직과 함께 전진하라", 4: "우리 주위 세계에 나타나 있는 하느님에 대한 증거", 5: "행복한 가정생활을 위한 확실한 조언", 
-  6: "노아 시대의 홍수와 당신", 7: "“부드러운 자비의 아버지”를 본받으라", 8: "자신을 위해서가 아니라 하느님의 뜻을 행하기 위하여 생활함", 9: "하느님의 말씀을 듣고 행하는 사람이 되십시오", 10: "언제나 정직하게 말하고 행동하십시오", 
-  11: "그리스도를 본받아 ‘세상에 속하지 마십시오’", 12: "하느님은 권위에 대한 우리의 생각을 중요하게 여기신다", 13: "성과 결혼에 대한 하느님의 견해", 14: "깨끗한 백성은 여호와께 영예가 된다", 15: "“모든 사람에게 선한 일을 하십시오”", 
-  16: "하느님과 계속 가까워지십시오", 17: "자신이 가진 모든 것으로 하느님께 영광을 돌리십시오", 18: "여호와를 당신의 산성으로 삼으십시오", 19: "당신의 미래—어떻게 알 수 있는가?", 20: "지금은 하느님께서 세상을 통치하실 때인가?", 
-  21: "왕국 마련 안에서 자신의 위치를 소중히 여기십시오", 22: "당신은 여호와의 마련을 통해 유익을 얻고 있는가?", 23: "우리의 삶에는 분명 목적이 있다", 24: "당신은 “값진 진주”를 발견했는가?", 25: "세상의 영을 물리치십시오!", 
-  26: "하느님은 당신을 소중히 여기시는가?", 27: "결혼 생활의 행복한 출발", 28: "결혼 생활에서 존중심과 사랑을 나타내십시오", 29: "자녀를 기르는 일에 따르는 책임과 축복", 30: "가족 간의 의사소통을 개선하는 방법", 
-  31: "당신은 영적 필요를 느끼는가?", 32: "일상생활의 염려에 어떻게 대처할 수 있는가?", 33: "정의로운 세상—과연 올 것인가?", 34: "당신은 생존을 위한 표를 받을 것인가?", 35: "당신도 영원히 살 수 있다!", 
-  36: "현 생명이 인생의 전부인가?", 37: "하느님의 길로 걷는 것이 정말 유익한가?", 38: "세상 끝을 어떻게 생존할 수 있는가?", 39: "예수 그리스도—세상을 이기시는 분", 40: "가까운 미래에 일어날 일", 
-  41: "‘그대로 서서 여호와의 구원을 보십시오’", 42: "사랑이 증오를 이길 수 있는가?", 43: "하느님이 요구하시는 것—우리에게 언제나 유익하다", 44: "예수의 가르침은 당신에게 어떤 유익을 줄 수 있는가?", 45: "생명에 이르는 길을 따르십시오", 
-  46: "끝까지 확신을 굳게 유지하십시오", 47: "”좋은 소식을 믿으십시오”", 48: "그리스도인들의 충성—시험받고 있다", 49: "이 땅이 과연 다시 깨끗해질 수 있는가?", 50: "지혜로운 결정—어떻게 내릴 수 있는가?", 
-  51: "진리가 당신의 생활을 변화시키고 있는가?", 52: "당신의 하느님은 누구인가?", 53: "당신의 생각은 하느님의 생각과 일치한가?", 54: "하느님과 그분의 약속에 대한 믿음을 길러 나가십시오", 55: "하느님 앞에서 어떻게 좋은 이름을 얻을 수 있는가?", 
-  56: "우리가 신뢰할 수 있는 지도자는 누구인가?", 57: "박해를 견디는 일", 58: "누가 그리스도의 참제자인가?", 60: "당신의 삶의 목적은 무엇인가?", 
-  61: "당신은 누구의 약속을 신뢰하는가?", 62: "어디에서 진정한 희망을 발견할 수 있는가?", 63: "진리를 찾을 수 있습니까?", 64: "당신은 ‘쾌락을 사랑하는 사람’이 될 것인가, ‘하느님을 사랑하는 사람’이 될 것인가?", 65: "분노가 가득한 세상에서 평화를 이루는 방법", 
-  66: "당신은 수확하는 일에 참여할 것인가?", 67: "여호와의 말씀과 그분의 창조물에 대해 묵상하십시오", 68: "“계속 ··· 서로 기꺼이 용서하십시오”", 69: "왜 자기희생적인 사랑을 나타내야 하는가?", 70: "왜 하느님을 신뢰해야 하는가?", 
-  71: "“깨어 있으십시오”—왜 그리고 어떻게?", 72: "사랑—참그리스도인 회중을 알아볼 수 있는 표", 73: "“지혜의 마음”을 얻으십시오", 74: "여호와께서는 우리를 살펴보고 계신다", 75: "개인 생활에서 여호와의 통치권을 지지하십시오", 
-  76: "오늘날의 문제들에 대처하는 데 성서 원칙이 도움이 되는가?", 77: "“후대에 힘쓰십시오\"", 78: "기쁜 마음으로 여호와를 섬기십시오", 79: "당신은 하느님의 친구가 될 것인가, 세상의 친구가 될 것인가?", 80: "과학과 성경—당신은 어느 쪽에 희망을 두는가?", 
-  81: "누가 제자 삼는 일을 할 자격이 있는가?", 83: "그리스도인은 십계명을 지켜야 하는가?", 84: "당신은 이 세계의 운명을 피할 것인가?", 85: "폭력적인 세상에서 전해지고 있는 좋은 소식", 
-  86: "하느님께서 들으시는 기도", 87: "당신과 하느님과의 관계는 어떠한가?", 88: "성경의 표준에 따라 생활해야 할 이유", 89: "진리에 목마른 사람은 오십시오!", 90: "참생명을 얻기 위해 힘써 노력하십시오!", 
-  91: "메시아의 임재와 그의 통치", 92: "세상사에서 종교의 역할", 93: "자연재해—언제 사라질 것인가?", 94: "참종교는 인간 사회의 필요를 충족시켜 준다", 95: "영매술에 속지 마십시오!", 
-  96: "종교의 미래는 어떠할 것인가?", 97: "구부러진 세대 가운데서 나무랄 데 없는 상태를 유지함", 98: "“이 세상의 장면은 변하고 있다”", 99: "성경을 신뢰할 수 있는 이유", 100: "영원히 지속될 튼튼한 우정을 기르는 방법", 
-  101: "여호와—\"위대한 창조주”", 102: "“예언의 말씀”에 주의를 기울이십시오", 103: "어떻게 진정한 기쁨을 누릴 수 있는가?", 104: "부모 여러분—여러분은 내화 재료로 건축하고 있습니까?", 105: "모든 환난 중에 위로를 받음", 
-  106: "땅을 파멸시키는 일로 인해 오게 될 하느님의 보응", 107: "당신은 훈련받은 양심을 통해 유익을 얻고 있는가?", 108: "당신도 확신을 가지고 미래를 맞이할 수 있다!", 109: "하느님의 왕국은 가까웠다", 110: "하느님을 첫째 자리에 둘 때 가정 생활에서 성공할 수 있다", 
-  111: "인류를 완전히 치료하는 일—어떻게 가능한가?", 112: "이기적인 세상에서 사랑을 나타내는 방법", 113: "청소년들은 어떻게 행복하고 성공적인 삶을 살 수 있는가?", 114: "하느님의 경이로운 창조물들을 인식함", 115: "사탄의 교활한 행위로부터 자신을 보호하십시오", 
-  116: "친구를 지혜롭게 선택하라!", 117: "선으로 악을 이기는 방법", 118: "여호와의 관점에서 청소년을 바라봄", 119: "그리스도인은 세상과 분리되어 있다—그것이 유익한 이유", 120: "지금 하느님의 통치권에 복종해야 하는 이유", 
-  121: "세계적인 형제들로 이루어진 조직과 함께 대재난에서 생존하십시오", 124: "성서의 저자가 하느님임을 확신할 수 있는 근거", 125: "인류에게 대속물이 필요한 이유", 
-  126: "누가 구원을 받을 수 있는가?", 127: "사람이 죽으면 어떻게 되는가?", 128: "지옥은 실제로 불타는 고초의 장소인가?", 129: "삼위일체는 성경의 가르침인가?", 130: "땅은 영원히 있을 것이다", 
-  131: "마귀에 맞서 굳게 서 있으십시오!", 132: "부활—죽음에 대한 승리!", 133: "인간의 기원—무엇을 믿느냐가 중요한가?", 134: "그리스도인은 안식일을 지켜야 하는가?", 135: "생명과 피의 신성함", 
-  136: "하느님은 숭배에서 형상을 사용하는 것을 승인하시는가?", 137: "성서의 기적들은 실제로 일어났는가?", 138: "타락한 세상에서 건전한 정신으로 살라", 139: "과학 세계에서의 하느님의 지혜", 140: "예수 그리스도는 실제로 누구인가?", 
-  141: "인간 창조물이 신음하는 일—언제 끝날 것인가?", 142: "여호와께 도피해야 하는 이유", 143: "모든 위로의 하느님을 신뢰하라", 144: "그리스도의 지도를 받는 충성스러운 회중", 145: "누가 우리 하느님 여호와와 같은가?", 
-  146: "여호와를 찬양하기 위하여 교육을 사용하라", 147: "여호와의 구원의 능력을 신뢰하라", 148: "당신은 생명에 대한 하느님의 견해를 가지고 있는가?", 149: "당신은 하느님과 함께 걷고 있는가?", 150: "이 세상은 멸망될 것인가?", 
-  151: "여호와는 자신의 백성을 위한 “안전한 산성”이시다", 152: "실제로 있을 아마겟돈—왜? 언제?", 153: "“외경스러운 날”을 가깝게 여기십시오!", 154: "저울에 달린 인간 통치", 155: "바빌론의 심판 시간은 도래하였는가?", 
-  156: "심판 날—두려워할 때인가, 아니면 희망을 가질 때인가?", 157: "참그리스도인들이 하느님의 가르침을 단장하는 방법", 158: "용기를 내어 여호와를 신뢰하여라", 159: "위험한 세상에서 안전을 찾는 일", 160: "당신의 그리스도인 신분을 지키라!", 
-  161: "예수께서는 왜 고난을 겪고 죽으셨는가?", 162: "어둠의 세상으로부터의 구출", 163: "왜 참하느님을 두려워해야 하는가?", 164: "하느님은 지금도 통제력을 행사하시는가?", 165: "당신은 누구의 가치관을 소중히 여기는가?", 
-  166: "진정한 믿음이란 무엇이며 어떻게 나타낼 수 있는가?", 167: "무분별한 세상에서 지혜롭게 행동하라", 168: "이 혼란스러운 세상에서도 안전을 느낄 수 있다!", 169: "왜 성서의 인도를 받아야 하는가?", 170: "누가 인류를 통치할 자격이 있는가?", 
-  171: "당신도 지금부터 영원히 평화로운 삶을 누릴 수 있다!", 172: "우리는 하느님 앞에서 어떤 신분을 가지고 있는가?", 173: "하느님의 관점에서 참종교가 과연 있는가?", 174: "하느님의 신세계—누가 들어갈 수 있는가?", 175: "성서가 하느님의 말씀이라는 증거는 무엇인가?", 
-  176: "진정한 평화와 안전—언제 있을 것인가?", 177: "고난의 때에 어디에서 도움을 얻을 수 있는가?", 178: "충절의 길로 걸으라", 179: "세상의 환상적인 것을 멀리하고, 왕국의 실제적인 것을 추구하라", 180: "부활 희망이 우리 자신에게 실제적이어야 하는 이유", 
-  181: "끝은 우리가 생각하는 것보다 가까운가?", 182: "하느님의 왕국이 지금 우리를 위해 하고 있는 일", 183: "무가치한 것들을 보지 말고 물리치십시오!", 184: "죽으면 모든 것이 끝나는가?", 185: "진리가 우리의 생활에 영향을 미치는가?", 
-  186: "하느님의 행복한 백성과 연합하십시오", 187: "사랑의 하느님께서 왜 악을 허용하시는가?", 188: "당신은 여호와께 확신을 두고 있는가?", 189: "하느님과 함께 걸으면 지금부터 영원히 축복을 받는다", 190: "하느님께서 약속하신 완전하고 행복한 가정", 
-  191: "사랑과 믿음이 세상을 이기는 방법", 192: "당신은 영원한 생명에 이르는 길을 걷고 있는가?", 193: "세계적 고난의 때에 있을 구출", 194: "경건한 지혜는 우리에게 어떻게 유익을 주는가?"
-};
-const initialData = [];
-
-// 레거시 데이터를 새로운 YYYY-MM-DD 형식으로 변환해주는 헬퍼
-function parseToFullDate(dateStr, contextYear) {
-  if (!dateStr) return null;
-  if (dateStr.includes('-')) return new Date(dateStr + "T00:00:00");
-  const match = dateStr.match(/(\d{1,2})월\s*(\d{1,2})일/);
-  if (match) {
-    const m = parseInt(match[1], 10);
-    const d = parseInt(match[2], 10);
-    const y = m >= 9 ? contextYear : contextYear + 1;
-    return new Date(y, m - 1, d);
-  }
-  return null;
-}
-function formatDateToISO(dateObj) {
-  if(!dateObj) return '';
-  const y = dateObj.getFullYear();
-  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const d = String(dateObj.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-function formatDateToDisplay(isoDate) {
-  if (!isoDate || !isoDate.includes('-')) return isoDate;
-  const parts = isoDate.split('-');
-  return `${parseInt(parts[1], 10)}월 ${parseInt(parts[2], 10)}일`;
-}
-
-// 상단 연도 선택 드롭다운 설정
-function initYearSelect() {
-  const select = document.getElementById('yearSelect');
-  if(!select) return;
-  select.innerHTML = '';
-  // 과거 1년, 현재, 미래 1년 세팅
-  for(let y = currentServiceYear - 1; y <= currentServiceYear + 1; y++) {
-    let opt = document.createElement('option');
-    opt.value = y;
-    opt.text = `${y}~${y+1}년도` + (y === currentServiceYear ? ' (현재)' : '');
-    if (y === currentServiceYear) opt.selected = true;
-    select.appendChild(opt);
-  }
-}
-
-function changeYear() {
-  selectedYear = parseInt(document.getElementById('yearSelect').value, 10);
-  renderTable();
-}
-
-database.ref('public_talks_app').on('value', (snapshot) => {
-  const data = snapshot.val();
-  
-  let needSave = false;
-  if (data) {
-    lectures = data.lectures || [];
-    outlineTitles = data.outlineTitles || defaultOutlineTitles;
-    suspendedOutlines = data.suspendedOutlines || [];
-    allowedUsers = data.allowedUsers || [];
-    brotherNames = data.brotherNames || defaultBrotherNames;
-    
-    // 이전 'MM월 DD일' 포맷을 캘린더용 'YYYY-MM-DD'로 자동 변환 (첫 연동 시)
-    lectures.forEach(l => {
-        if (l.date && !l.date.includes('-')) {
-             const dObj = parseToFullDate(l.date, currentServiceYear);
-             if (dObj) { l.date = formatDateToISO(dObj); needSave = true; }
-        }
-    });
-  } else {
-    lectures = JSON.parse(JSON.stringify(initialData));
-    outlineTitles = JSON.parse(JSON.stringify(defaultOutlineTitles));
-    brotherNames = [...defaultBrotherNames];
-    needSave = true;
-  }
-  
-  updateDatalist(); 
-  
-  if (currentUserRole) {
-    if (document.getElementById('talkListView').style.display !== 'none') {
-       renderTable();
-    }
-    if (document.getElementById('userManageView').style.display !== 'none') {
-       renderUserManage();
-       renderBrotherManage();
-    }
-  }
-});
-
-function saveToFirebase() {
-  database.ref('public_talks_app').set({
-    lectures: lectures,
-    outlineTitles: outlineTitles,
-    suspendedOutlines: suspendedOutlines,
-    allowedUsers: allowedUsers,
-    brotherNames: brotherNames
-  });
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  initYearSelect();
-  modal = new bootstrap.Modal(document.getElementById('lectureModal'));
-  resetModal = new bootstrap.Modal(document.getElementById('resetModal'));
-  outlineListModal = new bootstrap.Modal(document.getElementById('outlineListModal'));
-  
-  const savedRole = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
-  const savedName = localStorage.getItem('userName') || sessionStorage.getItem('userName');
-  
-  if(savedRole && savedName) {
-      currentUserRole = savedRole;
-      currentUserName = savedName;
-      
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('mainApp').style.display = 'block';
-      applyRoleUI();
-      
-      if (currentUserRole === 'USER') {
-          const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-          setTimeout(() => { checkUpcomingAssignments(isMobile); }, 500);
-      }
-  }
-});
-
-function initAudioContext() {
-  if (!audioCtx) {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (AudioContext) {
-          audioCtx = new AudioContext();
-      }
-  }
-  if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume();
-  }
-}
-
-function playNotificationSound() {
-  if (!audioCtx) return;
-  try {
-      const osc = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-      
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(600, audioCtx.currentTime); 
-      osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1); 
-      
-      gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-      gainNode.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.05);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-      
-      osc.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-      
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.5);
-  } catch(e) { console.log("사운드 재생 실패:", e); }
-}
-
-function handleEnter(e) { if (e.key === 'Enter' || e.keyCode === 13) { doLogin(); } }
-
-function doLogin() {
-  initAudioContext(); 
-
-  const id = document.getElementById('loginId').value.trim();
-  const pw = document.getElementById('loginPw').value.trim();
-  const isAutoLogin = document.getElementById('autoLoginCheck').checked; 
-
-  if (id === 'icganghwa' && pw === '191475') {
-      currentUserRole = 'ADMIN';
-      currentUserName = '관리자';
-  } else if (pw === '191435') {
-      if (allowedUsers.includes(id)) {
-          currentUserRole = 'USER';
-          currentUserName = id;
-      } else {
-          alert('등록되지 않은 사용자 이름입니다. 관리자에게 문의하세요.');
-          return;
-      }
-  } else {
-      alert('아이디(이름) 또는 비밀번호가 일치하지 않습니다.');
-      return;
-  }
-
-  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  if (isMobile) {
-      document.getElementById('loadingMobile').style.display = 'block';
-      document.getElementById('loadingPC').style.display = 'none';
-  } else {
-      document.getElementById('loadingMobile').style.display = 'none';
-      document.getElementById('loadingPC').style.display = 'block';
-  }
-
-  document.getElementById('loginScreen').style.display = 'none';
-  const loadingScreen = document.getElementById('loadingScreen');
-  loadingScreen.style.display = 'flex';
-  
-  setTimeout(() => {
-    loadingScreen.style.display = 'none';
-    
-    if (isAutoLogin) {
-        localStorage.setItem('userRole', currentUserRole);
-        localStorage.setItem('userName', currentUserName);
-        sessionStorage.removeItem('userRole'); 
-        sessionStorage.removeItem('userName');
-    } else {
-        sessionStorage.setItem('userRole', currentUserRole);
-        sessionStorage.setItem('userName', currentUserName);
-        localStorage.removeItem('userRole'); 
-        localStorage.removeItem('userName');
-    }
-    
-    document.getElementById('mainApp').style.display = 'block';
-    applyRoleUI();
-
-    if (currentUserRole === 'USER') {
-        checkUpcomingAssignments(isMobile);
-    }
-  }, 2000);
-}
-
-function doLogout() {
-  currentUserRole = null;
-  currentUserName = "";
-  
-  sessionStorage.removeItem('userRole');
-  sessionStorage.removeItem('userName');
-  localStorage.removeItem('userRole');
-  localStorage.removeItem('userName');
-  
-  document.getElementById('loginId').value = '';
-  document.getElementById('loginPw').value = '';
-  document.getElementById('autoLoginCheck').checked = false; 
-  
-  document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('mainApp').style.display = 'none';
-  switchView('talkListView');
-}
-
-function applyRoleUI() {
-  const topHeaderArea = document.getElementById('topHeaderArea');
-  const topToolbar = document.getElementById('topToolbar');
-  const bottomToolbar = document.getElementById('bottomToolbar');
-  const roleBadgeStr = document.getElementById('roleBadgeStr');
-  const manageHeader = document.getElementById('manageHeader');
-  
-  document.getElementById('btnAddOutline').style.display = (currentUserRole === 'ADMIN') ? 'block' : 'none';
-
-  if (currentUserRole === 'ADMIN') {
-      topHeaderArea.style.display = 'block';
-      topToolbar.innerHTML = `
-        <button class="btn btn-outline-success fw-semibold px-3" onclick="exportToPDF()"><i class="bi bi-printer me-1"></i>내보내기</button>
-        <button class="btn btn-outline-secondary fw-semibold px-3" onclick="switchView('userManageView')"><i class="bi bi-gear-fill me-1"></i>설정 및 관리</button>
-        <button class="btn btn-dark px-3" onclick="doLogout()"><i class="bi bi-box-arrow-right me-1"></i>로그아웃</button>
-      `;
-      bottomToolbar.innerHTML = `
-        <button class="btn btn-outline-primary px-3 shadow-sm" onclick="openOutlineModal()"><i class="bi bi-list-ol me-1"></i>공개 강연 목록</button>
-        <button class="btn btn-accent px-3 shadow-sm" onclick="openModal()"><i class="bi bi-plus-lg me-1"></i>일정 추가</button>
-        <button class="btn btn-reset px-3 shadow-sm" onclick="openResetModal()"><i class="bi bi-arrow-counterclockwise me-1"></i>초기화</button>
-      `;
-      roleBadgeStr.innerHTML = `<i class="bi bi-shield-lock-fill me-1"></i>관리자 모드`;
-      roleBadgeStr.style.color = "#ffd700";
-      manageHeader.style.display = 'table-cell';
-  } else {
-      topHeaderArea.style.display = 'none';
-      topToolbar.innerHTML = `
-        <button class="btn btn-outline-success fw-semibold px-3" onclick="exportToPDF()"><i class="bi bi-printer me-1"></i>내보내기</button>
-        <button class="btn btn-dark fw-semibold px-3" onclick="doLogout()"><i class="bi bi-box-arrow-right me-1"></i>로그아웃</button>
-      `;
-      bottomToolbar.innerHTML = `
-        <button class="btn btn-outline-primary px-3 shadow-sm" onclick="openOutlineModal()"><i class="bi bi-list-ol me-1"></i>공개 강연 목록</button>
-      `;
-      roleBadgeStr.innerHTML = `<i class="bi bi-person-fill me-1"></i>${currentUserName} 형제`;
-      roleBadgeStr.style.color = "#e2e8f0"; 
-      manageHeader.style.display = 'none';
-  }
-  
-  // 관리자/사용자 권한에 따라 리렌더링
-  renderTable();
-}
-
-function checkUpcomingAssignments(isMobile) {
-    if (!currentUserName) return;
-    
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    let daysUntilSunday = today.getDay() === 0 ? 0 : 7 - today.getDay();
-    
-    let thisSunday = new Date(today);
-    thisSunday.setDate(today.getDate() + daysUntilSunday);
-    let nextSunday = new Date(thisSunday);
-    nextSunday.setDate(thisSunday.getDate() + 7);
-    
-    const thisSundayStr = formatDateToISO(thisSunday);
-    const nextSundayStr = formatDateToISO(nextSunday);
-    
-    let myAssignments = [];
-    
-    lectures.forEach(l => {
-        if (!l.date) return;
-        
-        if (l.date === thisSundayStr || l.date === nextSundayStr) {
-            let roles = [];
-            if (l.speaker === currentUserName) roles.push('연사');
-            if (l.chairman === currentUserName) roles.push('사회');
-            if (l.reader === currentUserName) roles.push('낭독');
-            if (l.prayer === currentUserName) roles.push('기도');
-            if (l.mic1 === currentUserName || l.mic2 === currentUserName) roles.push('마이크');
-            
-            if (roles.length > 0) {
-                let weekLabel = (l.date === thisSundayStr) ? '이번 주' : '다음 주';
-                let displayD = formatDateToDisplay(l.date);
-                
-                myAssignments.push(`
-                    <div class="mb-3 p-3 bg-light rounded-3 text-center border border-warning shadow-sm">
-                        <span class="badge bg-warning text-dark mb-2 fs-6 py-2 px-3 shadow-sm rounded-pill">${weekLabel} (${displayD})</span><br>
-                        <span class="fw-bold text-dark" style="font-size: 1.1rem;">${currentUserName}</span> 형제는<br>
-                        <span class="fw-bold" style="font-size: 1.15rem; color: var(--theme-blue);">『${roles.join(', ')}』</span>에 임명되어 있습니다.
-                    </div>
-                `);
-            }
-        }
-    });
-    
-    if (myAssignments.length > 0) {
-        document.getElementById('assignmentAlertContent').innerHTML = myAssignments.join('');
-        
-        // 스마트폰 모드일 때만 소리 켜기
-        if (isMobile) {
-            playNotificationSound();
-        }
-        
-        const alertModal = new bootstrap.Modal(document.getElementById('assignmentAlertModal'));
-        alertModal.show();
-    }
-}
-
-function updateDatalist() {
-  const datalist = document.getElementById('brothersDatalist');
-  datalist.innerHTML = '';
-  [...brotherNames].sort().forEach(name => {
-    const option = document.createElement('option');
-    option.value = name;
-    datalist.appendChild(option);
-  });
-}
-
-function openOutlineModal() {
-  const container = document.getElementById('outlineListContainer');
-  container.innerHTML = '';
-  const keys = Object.keys(outlineTitles).map(Number).sort((a, b) => a - b);
-  
-  keys.forEach(num => {
-    const isSuspended = suspendedOutlines.includes(num);
-    const textClass = isSuspended ? 'text-danger fw-bold' : 'text-dark fw-medium';
-    const badgeClass = isSuspended ? 'bg-danger' : 'bg-secondary';
-    
-    let actionBtns = '';
-    if (currentUserRole === 'ADMIN') {
-        const suspendBtn = `<button class="btn btn-sm ${isSuspended ? 'btn-danger' : 'btn-outline-danger bg-white'} border px-2 py-1 ms-1" onclick="toggleSuspend(${num})" title="사용 중지 토글">${isSuspended ? '<i class="bi bi-arrow-clockwise"></i> 재개' : '<i class="bi bi-slash-circle"></i> 중지'}</button>`;
-        const editBtn = `<button class="btn btn-sm btn-light text-secondary border px-2 py-1 ms-2" onclick="editOutlineTitle(${num})" title="제목 수정"><i class="bi bi-pencil"></i></button>`;
-        actionBtns = `<div class="d-flex flex-nowrap align-items-center">${editBtn}${suspendBtn}</div>`;
-    }
-    
-    container.innerHTML += `
-      <li class="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
-        <div class="d-flex align-items-center text-start" style="flex: 1;">
-          <span class="badge ${badgeClass} me-3" style="min-width: 35px; font-size: 0.9rem;">${num}</span>
-          <span class="${textClass} text-break">${outlineTitles[num]}</span>
-        </div>
-        ${actionBtns}
-      </li>
-    `;
-  });
-  outlineListModal.show();
-}
-
-function toggleSuspend(num) {
-  const idx = suspendedOutlines.indexOf(num);
-  if (idx > -1) { suspendedOutlines.splice(idx, 1); } 
-  else { suspendedOutlines.push(num); }
-  saveToFirebase(); 
-  openOutlineModal(); 
-}
-
-function addNewOutline() {
-  const numStr = prompt("새로 추가할 강연의 '골자 번호(숫자)'를 입력하세요:");
-  if (!numStr) return;
-  const num = parseInt(numStr, 10);
-  
-  if (isNaN(num)) { alert("유효한 숫자를 입력하세요."); return; }
-  if (outlineTitles[num]) { alert("이미 존재하는 번호입니다. 기존 항목 우측의 '수정' 버튼을 이용해주세요."); return; }
-  
-  const title = prompt(`제 ${num}호 강연의 '제목'을 입력하세요:`);
-  if (!title) return;
-  
-  outlineTitles[num] = title.trim();
-  saveToFirebase(); 
-  openOutlineModal(); 
-}
-
-function editOutlineTitle(num) {
-  const currentTitle = outlineTitles[num];
-  const newTitle = prompt(`제 ${num}호 강연의 새로운 제목을 입력하세요:`, currentTitle);
-  
-  if (newTitle !== null && newTitle.trim() !== '') {
-      outlineTitles[num] = newTitle.trim();
-      saveToFirebase(); 
-      openOutlineModal(); 
-  }
-}
-
-function switchView(viewId) {
-  if (viewId === 'talkListView') {
-    document.getElementById('talkListView').style.display = 'block';
-    document.getElementById('userManageView').style.display = 'none';
-    renderTable();
-  } else if (viewId === 'userManageView') {
-    document.getElementById('talkListView').style.display = 'none';
-    document.getElementById('userManageView').style.display = 'block';
-    renderUserManage();
-    renderBrotherManage(); 
-  }
-}
-
-function renderUserManage() {
-  const tbody = document.getElementById('userTableBody');
-  tbody.innerHTML = '';
-  if (allowedUsers.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="2" class="text-muted py-4">등록된 사용자가 없습니다.</td></tr>`;
-    return;
-  }
-  allowedUsers.forEach((name, idx) => {
-    tbody.innerHTML += `
-      <tr>
-        <td class="fw-bold text-dark">${name}</td>
-        <td><button class="btn btn-sm btn-outline-danger px-3" onclick="removeUser(${idx})"><i class="bi bi-trash"></i></button></td>
-      </tr>
-    `;
-  });
-}
-
-function checkUserValidation() {
-  const nameInput = document.getElementById('newUserName').value.trim();
-  const warningEl = document.getElementById('userValidationWarning');
-  if (!nameInput) { warningEl.style.display = 'none'; return; }
-  if (!brotherNames.includes(nameInput)) { warningEl.style.display = 'block'; } 
-  else { warningEl.style.display = 'none'; }
-}
-
-function addUser() {
-  const nameInput = document.getElementById('newUserName');
-  const name = nameInput.value.trim();
-  if (!name) return;
-  
-  if (!brotherNames.includes(name)) { alert("담당 형제 명단에 등록되지 않은 이름입니다. '이름을 다시 확인해 주세요'"); return; }
-  if (allowedUsers.includes(name)) { alert('이미 로그인 허용된 사용자입니다.'); return; }
-  
-  allowedUsers.push(name);
-  saveToFirebase(); 
-  nameInput.value = '';
-  document.getElementById('userValidationWarning').style.display = 'none';
-}
-
-function removeUser(idx) {
-  if (confirm(`'${allowedUsers[idx]}' 사용자를 로그인 목록에서 삭제하시겠습니까?`)) {
-    allowedUsers.splice(idx, 1);
-    saveToFirebase(); 
-  }
-}
-
-function renderBrotherManage() {
-  const tbody = document.getElementById('brotherTableBody');
-  tbody.innerHTML = '';
-  if (brotherNames.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="2" class="text-muted py-4">등록된 형제 명단이 없습니다.</td></tr>`;
-    return;
-  }
-  const sortedBrothers = [...brotherNames].sort();
-  sortedBrothers.forEach((name) => {
-    const originalIdx = brotherNames.indexOf(name);
-    tbody.innerHTML += `
-      <tr>
-        <td class="fw-bold text-dark">${name}</td>
-        <td><button class="btn btn-sm btn-outline-danger px-3" onclick="removeBrother(${originalIdx})"><i class="bi bi-trash"></i></button></td>
-      </tr>
-    `;
-  });
-}
-
-function addBrother() {
-  const nameInput = document.getElementById('newBrotherName');
-  const name = nameInput.value.trim();
-  if (!name) return;
-  if (brotherNames.includes(name)) { alert('이미 드롭다운 명단에 등록된 이름입니다.'); return; }
-  
-  brotherNames.push(name);
-  saveToFirebase(); 
-  nameInput.value = '';
-}
-
-function removeBrother(idx) {
-  const targetName = brotherNames[idx];
-  if (confirm(`'${targetName}' 형제를 담당자 자동완성 목록에서 삭제하시겠습니까?`)) {
-    brotherNames.splice(idx, 1);
-    saveToFirebase(); 
-  }
-}
-
-// 달력 생성을 위해 선택된 연도의 9월 1일부터 내년 8월 말일까지 구하기
-function getNextAugustRange(year) {
-  let start = new Date(year, 8, 1); 
-  let firstSunday = new Date(start);
-  firstSunday.setDate(1 + (7 - start.getDay()) % 7);
-  let end = new Date(year + 1, 7, 31, 23, 59, 59); 
-  return { start: firstSunday, end: end };
-}
-
-function generateSundays(start, end) {
-  let sundays = [];
-  let current = new Date(start);
-  while (current <= end) {
-    sundays.push(formatDateToISO(current));
-    current.setDate(current.getDate() + 7);
-  }
-  return sundays;
-}
-
-// 화면용 하이라이트 (과거 일정엔 뱃지 안 뜨게)
-function highlightName(name, isoDateStr) {
-  if (!name) return '';
-  
-  let isFutureOrToday = true; 
-  if (isoDateStr) {
-    const d = new Date(isoDateStr + "T00:00:00");
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    if (d.getTime() < today.getTime()) {
-      isFutureOrToday = false; 
-    }
-  }
-
-  if (isFutureOrToday && currentUserRole === 'USER' && currentUserName && name.trim() === currentUserName.trim()) {
-    return `<span class="badge bg-warning text-dark fw-bold px-2 shadow-sm rounded-pill" style="font-size: 0.9rem; padding: 0.25rem 0.5rem;">${name}</span>`;
-  }
-  return `<span>${name}</span>`;
-}
-
-function renderTable() {
-  const tbody = document.getElementById('lectureTableBody');
-  const search = document.getElementById('searchInput').value.trim().toLowerCase();
-
-  displayList = [];
-  const range = getNextAugustRange(selectedYear);
-  const sundays = generateSundays(range.start, range.end);
-  
-  // 선택된 연도 범위의 데이터만 추려냄
-  let windowLectures = lectures.map((l, idx) => ({ ...l, originalIndex: idx })).filter(l => {
-    if(!l.date) return true;
-    const dObj = new Date(l.date + "T00:00:00");
-    return dObj >= range.start && dObj <= range.end;
-  });
-
-  let coveredSet = new Set(windowLectures.map(l => l.date));
-  sundays.forEach(sun => {
-    if (!coveredSet.has(sun)) {
-      windowLectures.push({ date: sun, outlineNo: "", title: "", speaker: "", congregation: "", chairman: "", reader: "", prayer: "", mic1: "", mic2: "", originalIndex: -1 });
-    }
-  });
-
-  // 날짜순 정렬
-  windowLectures.sort((a, b) => new Date(a.date + "T00:00:00") - new Date(b.date + "T00:00:00"));
-  displayList = windowLectures;
-
-  tbody.innerHTML = '';
-
-  displayList.forEach(item => {
-    const searchableText = (
-      (item.title || '') + 
-      (item.speaker || '') + 
-      (item.congregation || '') + 
-      (item.outlineNo || '') + 
-      (item.chairman || '') + 
-      (item.reader || '') + 
-      (item.prayer || '') + 
-      (item.mic1 || '') + 
-      (item.mic2 || '')
-    ).toLowerCase();
-
-    if (search === '' || searchableText.includes(search)) {
-      const isPlaceholder = item.originalIndex === -1;
-      const isSpecial = !isPlaceholder && !item.speaker && item.title;
-      
-      const tr = document.createElement('tr');
-      if (isSpecial) tr.className = 'special-event';
-      if (isPlaceholder) tr.className = 'empty-slot border-bottom';
-
-      const isSuspendedOutline = item.outlineNo && suspendedOutlines.includes(Number(item.outlineNo));
-
-      let titleClass = item.title ? (isSuspendedOutline ? 'text-danger fw-bold' : 'text-dark') : 'text-muted fst-italic';
-      if (!item.outlineNo && item.title && !isPlaceholder) { titleClass += ' title-no-outline'; }
-      
-      let titleHTML = item.title || (isPlaceholder ? '등록된 일정이 없습니다' : '(미정)');
-      if (isSuspendedOutline) {
-          titleHTML += `<div class="text-danger fw-bold mt-1" style="font-size: 0.8rem;"><i class="bi bi-exclamation-triangle-fill me-1"></i>이 공개 강연 골자는 사용하지 않을 것입니다 (26년5월 광고 참고)</div>`;
-      }
-      
-      let outlineNoClass = isSuspendedOutline ? 'text-danger fw-bold' : 'outline-text';
-      
-      let micArr = [];
-      if(item.mic1) micArr.push(highlightName(item.mic1, item.date));
-      if(item.mic2) micArr.push(highlightName(item.mic2, item.date));
-      let micHTML = micArr.length > 0 ? micArr.join('<br>') : '<span class="text-muted">-</span>';
-
-      let manageCellHTML = '';
-      if (currentUserRole === 'ADMIN') {
-        if (isPlaceholder) {
-          manageCellHTML = `
-            <td>
-              <button class="btn btn-sm btn-theme" style="width: 68px;" onclick="openModal(${item.originalIndex}, '${item.date}')" title="일정 추가">
-                <i class="bi bi-plus-lg"></i> 추가
-              </button>
-            </td>
-          `;
-        } else {
-          manageCellHTML = `
-            <td>
-              <div class="d-flex justify-content-center gap-1">
-                <button class="btn btn-sm btn-outline-primary" style="width: 32px;" onclick="openModal(${item.originalIndex}, '${item.date}')" title="수정"><i class="bi bi-pencil"></i></button>
-                <button class="btn btn-sm btn-outline-danger" style="width: 32px;" onclick="deleteLecture(${item.originalIndex})" title="삭제"><i class="bi bi-trash"></i></button>
-              </div>
-            </td>
-          `;
-        }
-      }
-
-      // 화면에 보여줄 땐 MM월 DD일 로 변경
-      let displayD = formatDateToDisplay(item.date);
-
-      tr.innerHTML = `
-        <td class="${isPlaceholder ? 'text-black-50' : 'text-secondary'} text-nowrap">${displayD || '-'}</td>
-        <td>${item.outlineNo ? `<span class="${outlineNoClass}">${item.outlineNo}</span>` : `<span class="text-muted">-</span>`}</td>
-        <td class="text-center ${titleClass}">${titleHTML}</td>
-        <td>${item.speaker ? highlightName(item.speaker, item.date) : `<span class="text-muted">-</span>`}</td>
-        <td>${item.congregation || '<span class="text-muted">-</span>'}</td>
-        <td>${item.chairman ? highlightName(item.chairman, item.date) : `<span class="text-muted">-</span>`}</td>
-        <td>${item.reader ? highlightName(item.reader, item.date) : `<span class="text-muted">-</span>`}</td>
-        <td>${item.prayer ? highlightName(item.prayer, item.date) : `<span class="text-muted">-</span>`}</td>
-        <td class="lh-sm">${micHTML}</td>
-        ${manageCellHTML}
-      `;
-      tbody.appendChild(tr);
-    }
-  });
-}
-
-function openResetModal() { resetModal.show(); }
-
-function executeReset() {
-  // 선택된 연도의 데이터만 지우기
-  const range = getNextAugustRange(selectedYear);
-  lectures = lectures.filter(l => {
-    if(!l.date) return true;
-    const dObj = new Date(l.date + "T00:00:00");
-    // 보고 있는 연도 범위를 벗어나는 것만 남김 (즉, 현재 켜져있는 연도의 데이터를 삭제)
-    return dObj < range.start || dObj > range.end;
-  });
-  saveToFirebase(); 
-  resetModal.hide();
-}
-
-function handleDateInput() { checkIfSunday(); checkRecentUsage(); }
-function handleOutlineInput() { autoFillTitle(); checkRecentUsage(); checkSuspendedUsage(); }
-
-function checkSuspendedUsage() {
-    const num = parseInt(document.getElementById('inputOutlineNo').value, 10);
-    const warningEl = document.getElementById('suspendedWarning');
-    if (num && suspendedOutlines.includes(num)) { warningEl.style.display = 'block'; } 
-    else { warningEl.style.display = 'none'; }
-}
-
-function checkIfSunday() {
-  const dateStr = document.getElementById('inputDate').value;
-  const warningEl = document.getElementById('sundayWarning');
-  if (!dateStr) { warningEl.style.display = 'none'; return; }
-  const dateObj = new Date(dateStr + "T00:00:00");
-  if (dateObj.getDay() !== 0) warningEl.style.display = 'block';
-  else warningEl.style.display = 'none';
-}
-
-function autoFillTitle() {
-  const num = document.getElementById('inputOutlineNo').value;
-  const titleInput = document.getElementById('inputTitle');
-  const titleHelp = document.getElementById('titleHelp');
-  if (num && outlineTitles[num]) {
-    titleInput.value = outlineTitles[num];
-    titleHelp.style.display = 'block';
-  } else {
-    titleHelp.style.display = 'none';
-  }
-}
-
-// [핵심기능] 과거 1년 전체를 뒤져서 중복을 찾아내는 지능형 알림
-function checkRecentUsage() {
-   راز   راز   راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز راز이것은 정말 실무적으로 훌륭하고 꼭 필요한 기능입니다! 지난 1년간 어떤 강연이 제공되었는지 파악하는 것은 일정 계획의 핵심이죠.
-
-이 문제를 가장 깔끔하고 전문적으로 해결하기 위해 **'봉사 연도(Service Year) 선택 기능'**과 **'스마트 달력 입력(Date Picker)'** 방식을 도입했습니다.
-
-### 💡 새롭게 적용된 똑똑한 해결 방법
-1. **봉사 연도 드롭다운 추가:** 계획표 상단 제목 옆에 **[2026-2027년도]**를 선택할 수 있는 예쁜 드롭다운을 만들었습니다. 
-   * 처음 로그인하면 무조건 **현재 연도**가 보입니다. 
-   * 과거 기록을 입력하고 싶을 때는 이 드롭다운을 눌러 **[2025-2026년도]**로 변경하기만 하면, 화면이 25년 9월부터 26년 8월까지의 과거 계획표로 싹 바뀝니다!
-2. **달력(Date Picker) 방식 도입:** 기존에 "09월 06일"처럼 글자로 입력하던 방식을 터치 한 번으로 연도까지 정확히 저장되는 **달력 선택 방식**으로 업그레이드했습니다. 
-   * 이렇게 하면 컴퓨터가 정확히 몇 년도 데이터인지 인식하게 되어, **'최근 1년 이내 사용 여부'를 수학적으로 완벽하게 계산하여 경고**를 띄워줍니다!
-3. **깔끔한 날짜 표시:** 연도가 포함되더라도 화면이 지저분해지지 않도록, 표 안에서는 **`26.09.06`** 형식으로 매우 세련되고 깔끔하게 날짜가 표시되도록 디자인을 조정했습니다.
-
-이 기능이 모두 담긴 완벽한 최종 코드를 아래 제공해 드립니다. 
-깃허브 `index.html`에 복사해서 덮어씌워 주시고, PC에서는 꼭 `Ctrl + Shift + R`을 눌러 강력 새로고침을 해주세요!
-**(🚨 마지막으로 잊지 마시고, 맨 아래 `firebaseConfig` 부분은 꼭 본인 코드로 교체해 주세요!)**
-
-```html
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>공개 강연 일정 관리 - 인천 강화 회중</title>
-  
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="강연 일정">
-
-  <link href="[https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css](https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css)" rel="stylesheet">
-  <link rel="stylesheet" href="[https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css](https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css)">
-  
-  <script src="[https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js](https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js)"></script>
-  <script src="[https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js](https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js)"></script>
-  <script src="[https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js](https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js)"></script>
-
-  <style>
-    :root {
-      --theme-blue: #5b7fb5; 
-      --theme-blue-hover: #4a6a9b;
-    }
-
-    body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
-    .card-header-custom { background-color: var(--theme-blue); color: white; }
-    .btn-theme { background-color: var(--theme-blue); color: white; border: none; transition: background-color 0.2s; }
-    .btn-theme:hover { background-color: var(--theme-blue-hover); color: white; }
-    .btn-accent { background-color: #334155; color: white; border: none; transition: background-color 0.2s; }
-    .btn-accent:hover { background-color: #1e293b; color: white; }
-    .btn-reset { border-color: #ef4444; color: #ef4444; background-color: transparent; transition: all 0.2s; }
-    .btn-reset:hover { background-color: #ef4444; color: white; }
-    .outline-text { font-size: 0.85rem; font-weight: 300; color: #475569; }
-    .title-no-outline { font-weight: bold; font-style: italic; }
-    
-    .special-event td { background-color: #ffffff; }
-    .empty-slot td { background-color: #ffffff; color: #94a3b8; }
-
-    .table-scroll-container { max-height: 60vh; overflow-y: auto; }
-    .table-scroll-container thead th { 
-      position: sticky; top: 0; z-index: 2; 
-      background-color: #ffffff; 
-      border-bottom: 2px solid #dee2e6;
-      vertical-align: middle; 
-    }
-    
-    #loginScreen, #loadingScreen { background-color: #f1f5f9; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; display: flex; }
-    .login-input { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
-    .login-input:focus { background-color: #ffffff; box-shadow: 0 0 0 3px rgba(91, 127, 181, 0.2); border-color: var(--theme-blue); }
-    .lh-sm { line-height: 1.25; }
-
-    input[type="number"]::-webkit-outer-spin-button,
-    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-    input[type="number"] { -moz-appearance: textfield; }
-
-    #printOverlay { 
-      display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
-      background-color: #e2e8f0; z-index: 99999; overflow-y: auto; -webkit-overflow-scrolling: touch;
-    }
-    body.printing #mainApp, body.printing #loginScreen, body.printing #loadingScreen { display: none !important; }
-    body.printing #printOverlay { display: block; }
-
-    #printContent { 
-      max-width: 210mm; margin: 20px auto; background-color: #fff; 
-      box-shadow: 0 4px 10px rgba(0,0,0,0.15); padding: 25mm 12mm 15mm 12mm; 
-      color: #000; font-family: 'Malgun Gothic', sans-serif;
-    }
-    
-    #printContent h2 { text-align: center; margin-bottom: 25px; font-size: 16pt; font-weight: bold; color: #333; }
-    #printContent .subtitle { text-align: right; margin-bottom: 6px; font-size: 10pt; font-weight: bold; color: #555; }
-    #printContent table { width: 100%; border-collapse: collapse; font-size: 9.5pt; table-layout: fixed; line-height: 1.15; margin-top: 0px; margin-bottom: 20px; } 
-    #printContent th, #printContent td { border: 1px solid #000; padding: 2px 1px; text-align: center; vertical-align: middle; word-break: keep-all; box-sizing: border-box; } 
-    #printContent th { background-color: #ffffff !important; font-weight: bold; font-size: 9.5pt; padding: 4px 1px; height: 36px !important; }
-    #printContent tr { height: 36px !important; page-break-inside: avoid; } 
-    #printContent .date-col { font-size: 8.5pt; white-space: nowrap; }
-    #printContent .title-col { text-align: center; font-weight: normal; font-size: 10.5pt; letter-spacing: -0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    #printContent .special-bold { font-weight: bold !important; color: #000 !important; }
-    #printContent .special-event td { background-color: #ffffff !important; }
-    #printContent .page-break { page-break-after: always; }
-
-    @media print {
-      @page { size: A4 portrait; margin: 20mm 10mm; } 
-      body { background-color: #fff; margin: 0; padding: 0; color: #000; }
-      body.printing #printOverlay { position: static; overflow: visible; display: block !important; background-color: #fff; }
-      .print-controls { display: none !important; }
-      #printContent { 
-        padding: 0 !important; margin: 0 auto !important; max-width: 100% !important; box-shadow: none !important; 
-        width: 99%; 
-      }
-      #printContent th, #printContent td { border: 1px solid #000 !important; }
-    }
-  </style>
-
-  <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 512; canvas.height = 512;
-        const ctx = canvas.getContext('2d');
-        
-        const gradient = ctx.createLinearGradient(0, 0, 0, 512);
-        gradient.addColorStop(0, '#5f7eb0'); 
-        gradient.addColorStop(1, '#4a6796'); 
-        ctx.fillStyle = gradient;
-        
-        ctx.beginPath();
-        ctx.roundRect(0, 0, 512, 512, 115);
-        ctx.fill();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '500 190px "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
-        ctx.shadowBlur = 4;
-        ctx.shadowOffsetY = 2;
-        ctx.fillText('강연', 256, 225);
-        
-        ctx.font = 'normal 85px "Apple SD Gothic Neo", "Segoe UI", sans-serif';
-        ctx.letterSpacing = '1px';
-        ctx.fillText('GANGHWA', 256, 375); 
-        
-        const dataURL = canvas.toDataURL('image/png');
-        
-        const appleIcon = document.createElement('link');
-        appleIcon.rel = 'apple-touch-icon';
-        appleIcon.href = dataURL;
-        document.head.appendChild(appleIcon);
-        
-        const favIcon = document.createElement('link');
-        favIcon.rel = 'icon';
-        favIcon.href = dataURL;
-        document.head.appendChild(favIcon);
-    });
-  </script>
-</head>
-<body>
-
-<div id="loginScreen" class="justify-content-center align-items-center">
-  <div class="card shadow-sm border-0" style="width: 100%; max-width: 360px; border-radius: 16px; overflow: hidden;">
-    <div class="text-center text-white py-4" style="background-color: var(--theme-blue);">
-      <h3 class="fw-bold mb-1">공개 강연 일정 관리</h3>
-      <p class="mb-0 opacity-75" style="font-size: 0.95rem;">인천 강화 회중</p>
-    </div>
-    <div class="card-body p-4 p-md-5 bg-white">
-      <div class="mb-3">
-        <label class="form-label fw-semibold text-secondary" style="font-size: 0.85rem;">아이디 (또는 이름)</label>
-        <input type="text" id="loginId" class="form-control form-control-lg login-input fs-6" placeholder="아이디/이름을 입력하세요">
-      </div>
-      <div class="mb-4">
-        <label class="form-label fw-semibold text-secondary" style="font-size: 0.85rem;">비밀번호</label>
-        <input type="password" id="loginPw" class="form-control form-control-lg login-input fs-6" placeholder="비밀번호를 입력하세요" onkeypress="handleEnter(event)">
-      </div>
-      <div class="form-check mb-4 text-start ms-1">
-        <input class="form-check-input shadow-sm" type="checkbox" id="autoLoginCheck" style="cursor: pointer;">
-        <label class="form-check-label text-secondary fw-semibold" for="autoLoginCheck" style="font-size: 0.85rem; cursor: pointer;">
-          자동 로그인
-        </label>
-      </div>
-      <button class="btn btn-theme btn-lg w-100 fw-bold" style="border-radius: 8px;" onclick="doLogin()">로그인</button>
-    </div>
-  </div>
-</div>
-
-<div id="loadingScreen" class="justify-content-center align-items-center" style="display: none;">
-  <div class="card shadow-lg border-0" style="width: 100%; max-width: 360px; border-radius: 16px; overflow: hidden;">
-    <div class="text-center text-white py-5 px-4" style="background-color: var(--theme-blue);">
-      <div id="loadingMobile" style="display: none;">
-        <i class="bi bi-phone-landscape fs-1 mb-3 d-block"></i>
-        <h5 class="fw-bold mb-2 lh-base" style="word-break: keep-all; font-size: 1.1rem;">이 프로그램은 스마트폰의<br>가로 모드에 최적화 되어 있습니다.</h5>
-      </div>
-      <div id="loadingPC" style="display: none;">
-        <i class="bi bi-display fs-1 mb-3 d-block"></i>
-        <h5 class="fw-bold mb-2 lh-base" style="word-break: keep-all; font-size: 1.1rem;">환영합니다.<br>시스템에 접속 중입니다...</h5>
-      </div>
-      <div class="spinner-border text-light mt-4" role="status" style="width: 1.5rem; height: 1.5rem; opacity: 0.8;">
-        <span class="visually-hidden">Loading...</span>
-      </div>
-    </div>
-  </div>
-</div>
-
+<!-- 3. 메인 애플리케이션 화면 -->
 <div id="mainApp" class="py-4" style="display: none;">
   <div class="container-fluid px-4">
     <!-- 상단 타이틀 (일반 사용자는 숨김 처리) -->
@@ -1416,7 +203,7 @@ function checkRecentUsage() {
     <!-- 공개 강연 일정 목록 뷰 -->
     <div id="talkListView" class="card shadow-sm border-0 mb-4">
       <div class="card-header card-header-custom py-3 d-flex justify-content-between align-items-center">
-        <!-- [신규] 봉사 연도 선택 드롭다운 결합 -->
+        <!-- 봉사 연도 선택 드롭다운 결합 -->
         <div class="d-flex align-items-center gap-2">
             <h5 class="mb-0 fw-semibold"><i class="bi bi-table me-2"></i>공개 강연 계획표</h5>
             <select id="serviceYearSelect" class="form-select form-select-sm shadow-sm border-0 fw-bold ms-2" style="width: auto; border-radius: 6px; cursor: pointer; background-color: rgba(255,255,255,0.9); color: var(--theme-blue);" onchange="changeServiceYear(this.value)">
@@ -1547,7 +334,7 @@ function checkRecentUsage() {
     <div class="modal-content">
       <div class="modal-body text-center pt-4 pb-3">
         <h6 class="fw-bold mb-0">정말로 모든 데이터를 초기화 하겠습니까?</h6>
-        <p class="text-muted mt-2 mb-0" style="font-size: 0.85rem;">오늘 이후의 모든 데이터가 지워집니다.</p>
+        <p class="text-muted mt-2 mb-0" style="font-size: 0.85rem;">현재 열람중인 연도의 데이터가 모두 지워집니다.</p>
       </div>
       <div class="modal-footer justify-content-center pb-3 pt-0 border-0 gap-2">
         <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">취소</button>
@@ -1569,7 +356,7 @@ function checkRecentUsage() {
           <input type="hidden" id="editIndex">
           <div class="row g-2 mb-3">
             <div class="col-md-6">
-              <!-- [신규] 달력형(Date Picker) 입력방식 적용 -->
+              <!-- 달력형(Date Picker) 입력방식 적용 -->
               <label class="form-label fw-semibold">날짜</label>
               <input type="date" id="inputDate" class="form-control" oninput="handleDateInput()" required>
               <div id="sundayWarning" class="form-text text-danger mt-1" style="display: none; font-weight: bold; font-size: 0.8rem;"><i class="bi bi-exclamation-circle me-1"></i>이 날짜는 일요일이 아닙니다</div>
@@ -1655,19 +442,18 @@ function checkRecentUsage() {
   <div id="printContent"></div>
 </div>
 
-<script src="[https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js](https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js)"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 // ==========================================
 // 1. 여기에 발급받은 Firebase Config 코드를 꼭 붙여넣으세요!
 // ==========================================
 const firebaseConfig = {
-  apiKey: "API_KEY_위치",
-  authDomain: "AUTH_DOMAIN_위치",
-  databaseURL: "DATABASE_URL_위치",
-  projectId: "PROJECT_ID_위치",
-  storageBucket: "STORAGE_BUCKET_위치",
-  messagingSenderId: "MESSAGING_SENDER_ID_위치",
-  appId: "APP_ID_위치"
+  apiKey: "AIzaSyApZWpHsA3VyArChMcnGPWNeW4-2LDjX5U",
+  authDomain: "pt-ganghwa.firebaseapp.com",
+  projectId: "pt-ganghwa",
+  storageBucket: "pt-ganghwa.firebasestorage.app",
+  messagingSenderId: "755057910418",
+  appId: "1:755057910418:web:e468987e39dda55bc9fc4b"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -1685,9 +471,9 @@ let allowedUsers = [];
 let suspendedOutlines = []; 
 let brotherNames = []; 
 let outlineTitles = {};
-
 let audioCtx;
-// 현재 뷰의 봉사 연도를 결정 (9월 기점)
+
+// 봉사 연도(9월 기준) 로직 계산
 let currentServiceYear = new Date().getMonth() >= 8 ? new Date().getFullYear() : new Date().getFullYear() - 1;
 
 const defaultBrotherNames = ["강용호", "김가우", "김대성", "김선정", "김윤건", "김현유", "민경태", "박남섭", "박수현", "박인규", "서금모", "서성남", "서영석", "은지상", "이석재", "이정로", "이찬호", "임동수", "장세관", "정용기", "조건희", "조오진", "주범서", "지역환", "차재승", "한일봉"];
@@ -1732,22 +518,114 @@ const defaultOutlineTitles = {
   186: "하느님의 행복한 백성과 연합하십시오", 187: "사랑의 하느님께서 왜 악을 허용하시는가?", 188: "당신은 여호와께 확신을 두고 있는가?", 189: "하느님과 함께 걸으면 지금부터 영원히 축복을 받는다", 190: "하느님께서 약속하신 완전하고 행복한 가정", 
   191: "사랑과 믿음이 세상을 이기는 방법", 192: "당신은 영원한 생명에 이르는 길을 걷고 있는가?", 193: "세계적 고난의 때에 있을 구출", 194: "경건한 지혜는 우리에게 어떻게 유익을 주는가?"
 };
-const initialData = []; // 초기 샘플데이터 제거
+
+function parseToDateObj(dateStr) {
+  if (!dateStr) return null;
+  if (dateStr.includes('-')) {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) return new Date(parts[0], parts[1]-1, parts[2]);
+  }
+  const match = String(dateStr).match(/(\d{1,2})월\s*(\d{1,2})일/);
+  if (match) {
+    const m = parseInt(match[1], 10) - 1;
+    const d = parseInt(match[2], 10);
+    const today = new Date();
+    let y = today.getFullYear();
+    if (today.getMonth() >= 8) { if (m < 8) y++; } 
+    else { if (m >= 8) y--; }
+    return new Date(y, m, d);
+  }
+  return null;
+}
+
+function formatDateToISO(dateObj) {
+  if(!dateObj) return '';
+  const y = dateObj.getFullYear();
+  const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const d = String(dateObj.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function formatDisplayDate(dateStr) {
+  const d = parseToDateObj(dateStr);
+  if (!d) return dateStr;
+  const yy = String(d.getFullYear()).slice(-2);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yy}.${mm}.${dd}`;
+}
+
+function getServiceYearRange(startYear) {
+  let firstDay = new Date(startYear, 8, 1); 
+  let firstSunday = new Date(firstDay);
+  firstSunday.setDate(1 + (7 - firstDay.getDay()) % 7);
+  if (firstDay.getDay() === 0) firstSunday = firstDay; 
+  let endDate = new Date(startYear + 1, 7, 31, 23, 59, 59); 
+  return { start: firstSunday, end: endDate };
+}
+
+function generateSundays(start, end) {
+  let sundays = [];
+  let current = new Date(start);
+  while (current <= end) {
+    sundays.push(formatDateToISO(current));
+    current.setDate(current.getDate() + 7);
+  }
+  return sundays;
+}
+
+function populateYearSelect() {
+    const select = document.getElementById('serviceYearSelect');
+    if (!select) return;
+    select.innerHTML = '';
+    const today = new Date();
+    const defaultYear = today.getMonth() >= 8 ? today.getFullYear() : today.getFullYear() - 1;
+    
+    for (let y = defaultYear - 2; y <= defaultYear + 1; y++) {
+        const option = document.createElement('option');
+        option.value = y;
+        let label = `${y} -${y+1}년도`;
+        if (y === defaultYear) label += " (현재)";
+        option.text = label;
+        if (y === currentServiceYear) option.selected = true;
+        select.appendChild(option);
+    }
+}
+
+function changeServiceYear(year) {
+    currentServiceYear = parseInt(year);
+    renderTable();
+}
 
 database.ref('public_talks_app').on('value', (snapshot) => {
   const data = snapshot.val();
   
+  let needSave = false;
   if (data) {
     lectures = data.lectures || [];
     outlineTitles = data.outlineTitles || defaultOutlineTitles;
     suspendedOutlines = data.suspendedOutlines || [];
     allowedUsers = data.allowedUsers || [];
     brotherNames = data.brotherNames || defaultBrotherNames;
+    
+    lectures.forEach(l => {
+        if (l.date && !l.date.includes('-')) {
+             const dObj = parseToDateObj(l.date);
+             if (dObj) { 
+                l.date = formatDateToISO(dObj); 
+                needSave = true; 
+             }
+        }
+    });
   } else {
-    lectures = JSON.parse(JSON.stringify(initialData));
+    lectures = [];
     outlineTitles = JSON.parse(JSON.stringify(defaultOutlineTitles));
     brotherNames = [...defaultBrotherNames];
-    saveToFirebase(); 
+    needSave = true;
+  }
+  
+  if (needSave) {
+      saveToFirebase();
   }
   
   updateDatalist(); 
@@ -1774,6 +652,7 @@ function saveToFirebase() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  populateYearSelect();
   modal = new bootstrap.Modal(document.getElementById('lectureModal'));
   resetModal = new bootstrap.Modal(document.getElementById('resetModal'));
   outlineListModal = new bootstrap.Modal(document.getElementById('outlineListModal'));
@@ -1796,31 +675,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
   }
 });
-
-// [신규] 봉사 연도 선택 드롭다운 렌더링
-function populateYearSelect() {
-    const select = document.getElementById('serviceYearSelect');
-    if (!select) return;
-    select.innerHTML = '';
-    const today = new Date();
-    const defaultYear = today.getMonth() >= 8 ? today.getFullYear() : today.getFullYear() - 1;
-    
-    // 현재 연도를 기준으로 과거 2년 ~ 미래 1년 범위 옵션 추가
-    for (let y = defaultYear - 2; y <= defaultYear + 1; y++) {
-        const option = document.createElement('option');
-        option.value = y;
-        let label = `${y} - ${y+1}년도`;
-        if (y === defaultYear) label += " (현재)";
-        option.text = label;
-        if (y === currentServiceYear) option.selected = true;
-        select.appendChild(option);
-    }
-}
-
-function changeServiceYear(year) {
-    currentServiceYear = parseInt(year);
-    renderTable();
-}
 
 function initAudioContext() {
   if (!audioCtx) {
@@ -1937,7 +791,6 @@ function doLogout() {
 }
 
 function applyRoleUI() {
-  populateYearSelect(); // 로그인 시 봉사연도 갱신
   const topHeaderArea = document.getElementById('topHeaderArea');
   const topToolbar = document.getElementById('topToolbar');
   const bottomToolbar = document.getElementById('bottomToolbar');
@@ -1974,6 +827,7 @@ function applyRoleUI() {
       roleBadgeStr.style.color = "#e2e8f0"; 
       manageHeader.style.display = 'none';
   }
+  
   renderTable();
 }
 
@@ -1989,13 +843,19 @@ function checkUpcomingAssignments(isMobile) {
     let nextSunday = new Date(thisSunday);
     nextSunday.setDate(thisSunday.getDate() + 7);
     
+    const thisSundayStr = formatDateToISO(thisSunday);
+    const nextSundayStr = formatDateToISO(nextSunday);
+    
     let myAssignments = [];
     
     lectures.forEach(l => {
+        if (!l.date) return;
+        
         const d = parseToDateObj(l.date);
         if (!d) return;
+        const checkDateStr = formatDateToISO(d);
         
-        if (d.getTime() === thisSunday.getTime() || d.getTime() === nextSunday.getTime()) {
+        if (checkDateStr === thisSundayStr || checkDateStr === nextSundayStr) {
             let roles = [];
             if (l.speaker === currentUserName) roles.push('연사');
             if (l.chairman === currentUserName) roles.push('사회');
@@ -2004,10 +864,12 @@ function checkUpcomingAssignments(isMobile) {
             if (l.mic1 === currentUserName || l.mic2 === currentUserName) roles.push('마이크');
             
             if (roles.length > 0) {
-                let weekLabel = (d.getTime() === thisSunday.getTime()) ? '이번 주' : '다음 주';
+                let weekLabel = (checkDateStr === thisSundayStr) ? '이번 주' : '다음 주';
+                let displayD = formatDisplayDate(checkDateStr);
+                
                 myAssignments.push(`
                     <div class="mb-3 p-3 bg-light rounded-3 text-center border border-warning shadow-sm">
-                        <span class="badge bg-warning text-dark mb-2 fs-6 py-2 px-3 shadow-sm rounded-pill">${weekLabel} (${formatDisplayDate(l.date)})</span><br>
+                        <span class="badge bg-warning text-dark mb-2 fs-6 py-2 px-3 shadow-sm rounded-pill">${weekLabel} (${displayD})</span><br>
                         <span class="fw-bold text-dark" style="font-size: 1.1rem;">${currentUserName}</span> 형제는<br>
                         <span class="fw-bold" style="font-size: 1.15rem; color: var(--theme-blue);">『${roles.join(', ')}』</span>에 임명되어 있습니다.
                     </div>
@@ -2063,8 +925,7 @@ function openOutlineModal() {
         </div>
         ${actionBtns}
       </li>
-    `;
-  });
+    });
   outlineListModal.show();
 }
 
@@ -2200,74 +1061,16 @@ function removeBrother(idx) {
   }
 }
 
-// [신규] 날짜 문자열(YYYY-MM-DD 또는 MM월 DD일)을 Date 객체로 변환
-function parseToDateObj(dateStr) {
-  if (!dateStr) return null;
-  // 표준 YYYY-MM-DD 형식 처리
-  if (dateStr.includes('-')) {
-    const parts = dateStr.split('-');
-    if (parts.length === 3) return new Date(parts[0], parts[1]-1, parts[2]);
-  }
-  // 구버전(MM월 DD일) 호환성 유지 처리 (올해 기준)
-  const match = String(dateStr).match(/(\d{1,2})월\s*(\d{1,2})일/);
-  if (match) {
-    const m = parseInt(match[1], 10) - 1;
-    const d = parseInt(match[2], 10);
-    const today = new Date();
-    let y = today.getFullYear();
-    if (today.getMonth() >= 8) { if (m < 8) y++; } 
-    else { if (m >= 8) y--; }
-    return new Date(y, m, d);
-  }
-  return null;
-}
-
-// [신규] 화면 표시용 간결한 날짜 형식 (YY.MM.DD)
-function formatDisplayDate(dateStr) {
-  const d = parseToDateObj(dateStr);
-  if (!d) return dateStr;
-  const yy = String(d.getFullYear()).slice(-2);
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yy}.${mm}.${dd}`;
-}
-
-// [신규] 선택된 봉사 연도에 맞춘 범위 계산
-function getServiceYearRange(startYear) {
-  let firstDay = new Date(startYear, 8, 1); // 9월 1일
-  let firstSunday = new Date(firstDay);
-  firstSunday.setDate(1 + (7 - firstDay.getDay()) % 7);
-  if (firstDay.getDay() === 0) firstSunday = firstDay; 
-  let endDate = new Date(startYear + 1, 7, 31, 23, 59, 59); // 다음 해 8월 31일
-  return { start: firstSunday, end: endDate };
-}
-
-// 달력 그리기 (YYYY-MM-DD 형식으로 반환)
-function generateSundays(start, end) {
-  let sundays = [];
-  let current = new Date(start);
-  while (current <= end) {
-    let yStr = current.getFullYear();
-    let mStr = String(current.getMonth() + 1).padStart(2, '0');
-    let dStr = String(current.getDate()).padStart(2, '0');
-    sundays.push(`${yStr}-${mStr}-${dStr}`);
-    current.setDate(current.getDate() + 7);
-  }
-  return sundays;
-}
-
-function highlightName(name, dateStr) {
+function highlightName(name, isoDateStr) {
   if (!name) return '';
   
   let isFutureOrToday = true; 
-  if (dateStr) {
-    const d = parseToDateObj(dateStr);
-    if (d) {
-      const today = new Date();
-      today.setHours(0,0,0,0);
-      if (d.getTime() < today.getTime()) {
-        isFutureOrToday = false; 
-      }
+  if (isoDateStr) {
+    const d = new Date(isoDateStr + "T00:00:00");
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    if (d.getTime() < today.getTime()) {
+      isFutureOrToday = false; 
     }
   }
 
@@ -2282,21 +1085,16 @@ function renderTable() {
   const search = document.getElementById('searchInput').value.trim().toLowerCase();
 
   displayList = [];
-  // 선택된 봉사 연도에 맞춰 범위 생성
   const range = getServiceYearRange(currentServiceYear);
   const sundays = generateSundays(range.start, range.end);
   
   let windowLectures = lectures.map((l, idx) => ({ ...l, originalIndex: idx })).filter(l => {
-    const dObj = parseToDateObj(l.date);
-    if(!dObj) return true; 
+    if(!l.date) return true;
+    const dObj = new Date(l.date + "T00:00:00");
     return dObj >= range.start && dObj <= range.end;
   });
 
-  // 빈 칸(일정 없음) 채워넣기 로직
-  let coveredSet = new Set(windowLectures.map(l => {
-    const d = parseToDateObj(l.date);
-    return d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` : l.date;
-  }));
+  let coveredSet = new Set(windowLectures.map(l => l.date));
   
   sundays.forEach(sun => {
     if (!coveredSet.has(sun)) {
@@ -2304,14 +1102,7 @@ function renderTable() {
     }
   });
 
-  windowLectures.sort((a, b) => {
-    const dA = parseToDateObj(a.date);
-    const dB = parseToDateObj(b.date);
-    if (!dA && !dB) return 0;
-    if (!dA) return 1;
-    if (!dB) return -1;
-    return dA - dB;
-  });
+  windowLectures.sort((a, b) => new Date(a.date + "T00:00:00") - new Date(b.date + "T00:00:00"));
   displayList = windowLectures;
 
   tbody.innerHTML = '';
@@ -2357,7 +1148,6 @@ function renderTable() {
       let manageCellHTML = '';
       if (currentUserRole === 'ADMIN') {
         if (isPlaceholder) {
-          // 달력에서 가져온 YYYY-MM-DD 날짜를 파라미터로 넘김
           manageCellHTML = `
             <td>
               <button class="btn btn-sm btn-theme" style="width: 68px;" onclick="openModal(${item.originalIndex}, '${item.date}')" title="일정 추가">
@@ -2377,8 +1167,10 @@ function renderTable() {
         }
       }
 
+      let displayD = formatDisplayDate(item.date);
+
       tr.innerHTML = `
-        <td class="${isPlaceholder ? 'text-black-50' : 'text-secondary'} text-nowrap">${formatDisplayDate(item.date)}</td>
+        <td class="${isPlaceholder ? 'text-black-50' : 'text-secondary'} text-nowrap">${displayD || '-'}</td>
         <td>${item.outlineNo ? `<span class="${outlineNoClass}">${item.outlineNo}</span>` : `<span class="text-muted">-</span>`}</td>
         <td class="text-center ${titleClass}">${titleHTML}</td>
         <td>${item.speaker ? highlightName(item.speaker, item.date) : `<span class="text-muted">-</span>`}</td>
@@ -2397,12 +1189,11 @@ function renderTable() {
 function openResetModal() { resetModal.show(); }
 
 function executeReset() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const range = getServiceYearRange(currentServiceYear);
   lectures = lectures.filter(l => {
-    const dObj = parseToDateObj(l.date);
-    if (!dObj) return true; 
-    return dObj < today;
+    if(!l.date) return true;
+    const dObj = new Date(l.date + "T00:00:00");
+    return dObj < range.start || dObj > range.end;
   });
   saveToFirebase(); 
   resetModal.hide();
@@ -2420,11 +1211,11 @@ function checkSuspendedUsage() {
 }
 
 function checkIfSunday() {
-  const dateStr = document.getElementById('inputDate').value.trim();
+  const dateStr = document.getElementById('inputDate').value;
   const warningEl = document.getElementById('sundayWarning');
   if (!dateStr) { warningEl.style.display = 'none'; return; }
-  const dateObj = parseToDateObj(dateStr);
-  if (dateObj && dateObj.getDay() !== 0) warningEl.style.display = 'block';
+  const dateObj = new Date(dateStr + "T00:00:00");
+  if (dateObj.getDay() !== 0) warningEl.style.display = 'block';
   else warningEl.style.display = 'none';
 }
 
@@ -2477,7 +1268,6 @@ function checkRecentUsage() {
   }
 }
 
-// [신규] 달력 인풋에 맞게 폼 초기화 시 날짜 데이터 바인딩
 function openModal(index = -1, dateStr = '') {
   document.getElementById('lectureForm').reset();
   document.getElementById('editIndex').value = index;
@@ -2492,10 +1282,9 @@ function openModal(index = -1, dateStr = '') {
     document.getElementById('modalTitle').innerText = '강연 정보 수정';
     const item = lectures[index];
     
-    // YYYY-MM-DD 포맷 맞추기
     const dObj = parseToDateObj(item.date);
     if (dObj) {
-        targetDate = `${dObj.getFullYear()}-${String(dObj.getMonth()+1).padStart(2,'0')}-${String(dObj.getDate()).padStart(2,'0')}`;
+        targetDate = formatDateToISO(dObj);
     } else {
         targetDate = item.date;
     }
@@ -2517,7 +1306,7 @@ function openModal(index = -1, dateStr = '') {
   }
   
   document.getElementById('inputDate').value = targetDate;
-  checkIfSunday(); // 날짜가 세팅된 직후 일요일 여부 검사
+  checkIfSunday(); 
   modal.show();
 }
 
