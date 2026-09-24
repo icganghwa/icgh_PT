@@ -26,7 +26,7 @@
       --theme-blue-hover: #4a6a9b;
     }
 
-    body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif; }
+    body { background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
     .card-header-custom { background-color: var(--theme-blue); color: white; }
     .btn-theme { background-color: var(--theme-blue); color: white; border: none; transition: background-color 0.2s; }
     .btn-theme:hover { background-color: var(--theme-blue-hover); color: white; }
@@ -101,46 +101,51 @@
     }
   </style>
 
+  <!-- 스마트폰 아이콘 동적 생성 스크립트 (우측 아이콘 스타일로 완벽 교체) -->
   <script>
     document.addEventListener("DOMContentLoaded", function() {
         const canvas = document.createElement('canvas');
         canvas.width = 512; canvas.height = 512;
         const ctx = canvas.getContext('2d');
         
+        // 1. 차분하고 고급스러운 단일톤의 블루 그라데이션 (광택 제거)
         const gradient = ctx.createLinearGradient(0, 0, 0, 512);
-        gradient.addColorStop(0, '#759cd8'); 
-        gradient.addColorStop(1, '#4c6ea4'); 
+        gradient.addColorStop(0, '#5f7eb0'); 
+        gradient.addColorStop(1, '#4a6796'); 
         ctx.fillStyle = gradient;
         
+        // 바탕 둥근 사각형 그리기
         ctx.beginPath();
         ctx.roundRect(0, 0, 512, 512, 115);
         ctx.fill();
 
-        ctx.beginPath();
-        ctx.roundRect(0, 0, 512, 256, {tl: 115, tr: 115, bl: 0, br: 0});
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-        ctx.fill();
-        
+        // 2. 메인 글자 '강연' (우측 아이콘처럼 얇고 세련된 고딕체)
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 180px "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
+        // 두께를 bold 대신 500(Medium)이나 normal로 조절, 크기도 약간 줄임
+        ctx.font = '500 170px "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+        
+        // 글자를 약간 또렷하게 만들기 위한 미세 그림자
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
         ctx.shadowBlur = 4;
         ctx.shadowOffsetY = 2;
-        ctx.fillText('강연', 256, 230);
+        ctx.fillText('강연', 256, 235);
         
-        ctx.font = 'normal 65px "Segoe UI", "Apple SD Gothic Neo", sans-serif';
+        // 3. 하단 영문 'GANGHWA' (비율과 굵기 매칭)
+        ctx.font = 'normal 55px "Apple SD Gothic Neo", "Segoe UI", sans-serif';
         ctx.letterSpacing = '1px';
-        ctx.fillText('GANGHWA', 256, 390);
+        ctx.fillText('GANGHWA', 256, 385);
         
         const dataURL = canvas.toDataURL('image/png');
         
+        // 애플 기기 바탕화면용 아이콘 등록
         const appleIcon = document.createElement('link');
         appleIcon.rel = 'apple-touch-icon';
         appleIcon.href = dataURL;
         document.head.appendChild(appleIcon);
         
+        // 브라우저 파비콘 등록
         const favIcon = document.createElement('link');
         favIcon.rel = 'icon';
         favIcon.href = dataURL;
@@ -174,7 +179,6 @@
 <!-- 2. 로그인 완료 후 표시되는 가로모드 안내 로딩 화면 -->
 <div id="loadingScreen" class="justify-content-center align-items-center" style="display: none;">
   <div class="card shadow-lg border-0" style="width: 100%; max-width: 360px; border-radius: 16px; overflow: hidden;">
-    <!-- 파란색 바탕 박스 안에 흰색 글자 -->
     <div class="text-center text-white py-5 px-4" style="background-color: var(--theme-blue);">
       <i class="bi bi-phone-landscape fs-1 mb-3 d-block"></i>
       <h5 class="fw-bold mb-2 lh-base" style="word-break: keep-all; font-size: 1.1rem;">이 프로그램은 스마트폰의<br>가로 모드에 최적화 되어 있습니다.</h5>
@@ -569,7 +573,6 @@ document.addEventListener("DOMContentLoaded", () => {
       currentUserRole = savedRole;
       currentUserName = savedName;
       
-      // 이미 로그인 되어있는 상태면 로딩 애니메이션 없이 바로 메인 띄움
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('mainApp').style.display = 'block';
       applyRoleUI();
@@ -598,13 +601,11 @@ function doLogin() {
       return;
   }
 
-  // 로그인 창을 숨기고 2초간 안내 로딩 창 띄우기
   document.getElementById('loginScreen').style.display = 'none';
   const loadingScreen = document.getElementById('loadingScreen');
   loadingScreen.style.display = 'flex';
   
   setTimeout(() => {
-    // 2초 후 로딩 창 숨기고 메인 UI 세팅
     loadingScreen.style.display = 'none';
     
     sessionStorage.setItem('userRole', currentUserRole);
