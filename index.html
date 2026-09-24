@@ -73,14 +73,20 @@
       box-shadow: 0 4px 10px rgba(0,0,0,0.15); padding: 25mm 12mm 15mm 12mm; 
       color: #000; font-family: 'Malgun Gothic', sans-serif;
     }
-    #printContent h2 { text-align: center; margin-bottom: 5px; font-size: 16pt; font-weight: bold; color: #333; }
-    #printContent .subtitle { text-align: right; margin-bottom: 4px; font-size: 9pt; font-weight: bold; color: #555; }
-    #printContent table { width: 100%; border-collapse: collapse; font-size: 8.5pt; table-layout: fixed; line-height: 1.15; margin-top: 0px; margin-bottom: 20px; } 
+    
+    /* 제목 아래 여백을 대폭 늘려서 답답함 해소 */
+    #printContent h2 { text-align: center; margin-bottom: 25px; font-size: 16pt; font-weight: bold; color: #333; }
+    #printContent .subtitle { text-align: right; margin-bottom: 6px; font-size: 10pt; font-weight: bold; color: #555; }
+    
+    /* 표 안의 전반적인 글씨 크기 확대 (8.5pt -> 9.5pt) */
+    #printContent table { width: 100%; border-collapse: collapse; font-size: 9.5pt; table-layout: fixed; line-height: 1.15; margin-top: 0px; margin-bottom: 20px; } 
     #printContent th, #printContent td { border: 1px solid #000; padding: 2px 1px; text-align: center; vertical-align: middle; word-break: keep-all; box-sizing: border-box; } 
-    #printContent th { background-color: #ffffff !important; font-weight: bold; font-size: 8.5pt; padding: 4px 1px; height: 36px !important; }
+    #printContent th { background-color: #ffffff !important; font-weight: bold; font-size: 9.5pt; padding: 4px 1px; height: 36px !important; }
     #printContent tr { height: 36px !important; page-break-inside: avoid; } 
-    #printContent .date-col { font-size: 7.5pt; white-space: nowrap; }
-    #printContent .title-col { text-align: center; font-weight: normal; font-size: 10pt; letter-spacing: -0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
+    /* 각 열별 세부 글씨 크기 확대 */
+    #printContent .date-col { font-size: 8.5pt; white-space: nowrap; }
+    #printContent .title-col { text-align: center; font-weight: normal; font-size: 10.5pt; letter-spacing: -0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     #printContent .special-bold { font-weight: bold !important; color: #000 !important; }
     #printContent .special-event td { background-color: #ffffff !important; }
     #printContent .page-break { page-break-after: always; }
@@ -99,14 +105,13 @@
     }
   </style>
 
-  <!-- 스마트폰 아이콘 동적 생성 스크립트 (글자 크기 확대 적용) -->
+  <!-- 스마트폰 아이콘 동적 생성 스크립트 (강연 글자는 살짝 작게, 영문은 더 크게 수정) -->
   <script>
     document.addEventListener("DOMContentLoaded", function() {
         const canvas = document.createElement('canvas');
         canvas.width = 512; canvas.height = 512;
         const ctx = canvas.getContext('2d');
         
-        // 차분한 단일톤 블루 그라데이션
         const gradient = ctx.createLinearGradient(0, 0, 0, 512);
         gradient.addColorStop(0, '#5f7eb0'); 
         gradient.addColorStop(1, '#4a6796'); 
@@ -116,20 +121,20 @@
         ctx.roundRect(0, 0, 512, 512, 115);
         ctx.fill();
 
-        // 메인 글자 '강연' (크기 210px로 확대)
+        // 메인 글자 '강연' (조금 더 작게: 190px)
         ctx.fillStyle = '#ffffff';
-        ctx.font = '500 210px "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+        ctx.font = '500 190px "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
         ctx.shadowBlur = 4;
         ctx.shadowOffsetY = 2;
-        ctx.fillText('강연', 256, 220);
+        ctx.fillText('강연', 256, 225);
         
-        // 하단 영문 'GANGHWA' (크기 70px로 확대)
-        ctx.font = 'normal 70px "Apple SD Gothic Neo", "Segoe UI", sans-serif';
+        // 하단 영문 'GANGHWA' (더 크게: 85px)
+        ctx.font = 'normal 85px "Apple SD Gothic Neo", "Segoe UI", sans-serif';
         ctx.letterSpacing = '1px';
-        ctx.fillText('GANGHWA', 256, 395);
+        ctx.fillText('GANGHWA', 256, 400);
         
         const dataURL = canvas.toDataURL('image/png');
         
@@ -250,7 +255,7 @@
       <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-semibold"><i class="bi bi-gear-fill me-2"></i>사용자 및 담당자 관리</h5>
         <div>
-          <button class="btn btn-sm btn-warning fw-bold me-2" onclick="migrateLocalToFirebase()"><i class="bi bi-cloud-arrow-up-fill me-1"></i>기존 데이터 복구 (PC→서버)</button>
+          <!-- 기존 데이터 복구 버튼 삭제됨 -->
           <button class="btn btn-sm btn-light fw-bold" onclick="switchView('talkListView')"><i class="bi bi-arrow-return-left me-1"></i>돌아가기</button>
         </div>
       </div>
@@ -480,7 +485,7 @@ const defaultOutlineTitles = {
   101: "여호와—\"위대한 창조주”", 102: "“예언의 말씀”에 주의를 기울이십시오", 103: "어떻게 진정한 기쁨을 누릴 수 있는가?", 104: "부모 여러분—여러분은 내화 재료로 건축하고 있습니까?", 105: "모든 환난 중에 위로를 받음", 
   106: "땅을 파멸시키는 일로 인해 오게 될 하느님의 보응", 107: "당신은 훈련받은 양심을 통해 유익을 얻고 있는가?", 108: "당신도 확신을 가지고 미래를 맞이할 수 있다!", 109: "하느님의 왕국은 가까웠다", 110: "하느님을 첫째 자리에 둘 때 가정 생활에서 성공할 수 있다", 
   111: "인류를 완전히 치료하는 일—어떻게 가능한가?", 112: "이기적인 세상에서 사랑을 나타내는 방법", 113: "청소년들은 어떻게 행복하고 성공적인 삶을 살 수 있는가?", 114: "하느님의 경이로운 창조물들을 인식함", 115: "사탄의 교활한 행위로부터 자신을 보호하십시오", 
-  116: "친구를 지혜롭게 선택하라!", 117: "선으로 악을 이기는 방법", 118: "여호와의 관점에서 청소년을 바라봄", 119: "그리스도인은 세상과 분리되어 있다—그것이 유익한 이유", 120: "지금 하느님의 통치권에 복종해야 하는 이유", 
+  116: "친구를 지혜롭게 선택하라!", 117: "선으로 단을 이기는 방법", 118: "여호와의 관점에서 청소년을 바라봄", 119: "그리스도인은 세상과 분리되어 있다—그것이 유익한 이유", 120: "지금 하느님의 통치권에 복종해야 하는 이유", 
   121: "세계적인 형제들로 이루어진 조직과 함께 대재난에서 생존하십시오", 124: "성서의 저자가 하느님임을 확신할 수 있는 근거", 125: "인류에게 대속물이 필요한 이유", 
   126: "누가 구원을 받을 수 있는가?", 127: "사람이 죽으면 어떻게 되는가?", 128: "지옥은 실제로 불타는 고초의 장소인가?", 129: "삼위일체는 성경의 가르침인가?", 130: "땅은 영원히 있을 것이다", 
   131: "마귀에 맞서 굳게 서 있으십시오!", 132: "부활—죽음에 대한 승리!", 133: "인간의 기원—무엇을 믿느냐가 중요한가?", 134: "그리스도인은 안식일을 지켜야 하는가?", 135: "생명과 피의 신성함", 
@@ -498,33 +503,6 @@ const defaultOutlineTitles = {
   191: "사랑과 믿음이 세상을 이기는 방법", 192: "당신은 영원한 생명에 이르는 길을 걷고 있는가?", 193: "세계적 고난의 때에 있을 구출", 194: "경건한 지혜는 우리에게 어떻게 유익을 주는가?"
 };
 const initialData = [];
-
-function migrateLocalToFirebase() {
-  if (!confirm("이 PC에 저장된 과거 데이터를 서버로 덮어씌워 복구하시겠습니까?")) return;
-
-  let hasData = false;
-  const localLectures = localStorage.getItem('public_talks_final_v6');
-  const localOutlines = localStorage.getItem('outline_titles_dynamic_v2');
-  const localSuspended = localStorage.getItem('suspended_outlines_v1');
-  const localUsers = localStorage.getItem('allowed_users_v1');
-  const localBrothers = localStorage.getItem('brothers_list_v1');
-
-  if(localLectures) { lectures = JSON.parse(localLectures); hasData = true; }
-  if(localOutlines) { outlineTitles = JSON.parse(localOutlines); hasData = true; }
-  if(localSuspended) { suspendedOutlines = JSON.parse(localSuspended); hasData = true; }
-  if(localUsers) { allowedUsers = JSON.parse(localUsers); hasData = true; }
-  if(localBrothers) { brotherNames = JSON.parse(localBrothers); hasData = true; }
-
-  if(hasData) {
-    saveToFirebase();
-    alert("✅ 기존 데이터가 성공적으로 서버에 복원되었습니다! 이제 스마트폰에서도 보입니다.");
-    renderTable();
-    renderUserManage();
-    renderBrotherManage();
-  } else {
-    alert("이 PC에는 복원할 과거 데이터가 없습니다. 이전에 데이터를 입력했던 정확한 PC와 브라우저인지 확인해 주세요.");
-  }
-}
 
 database.ref('public_talks_app').on('value', (snapshot) => {
   const data = snapshot.val();
