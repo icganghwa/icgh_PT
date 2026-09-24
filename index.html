@@ -161,12 +161,15 @@
         <label class="form-label fw-semibold text-secondary" style="font-size: 0.85rem;">비밀번호</label>
         <input type="password" id="loginPw" class="form-control form-control-lg login-input fs-6" placeholder="비밀번호를 입력하세요" onkeypress="handleEnter(event)">
       </div>
+      
+      <!-- 자동 로그인 체크박스 -->
       <div class="form-check mb-4 text-start ms-1">
         <input class="form-check-input shadow-sm" type="checkbox" id="autoLoginCheck" style="cursor: pointer;">
         <label class="form-check-label text-secondary fw-semibold" for="autoLoginCheck" style="font-size: 0.85rem; cursor: pointer;">
           자동 로그인
         </label>
       </div>
+
       <button class="btn btn-theme btn-lg w-100 fw-bold" style="border-radius: 8px;" onclick="doLogin()">로그인</button>
     </div>
   </div>
@@ -203,7 +206,7 @@
     <!-- 공개 강연 일정 목록 뷰 -->
     <div id="talkListView" class="card shadow-sm border-0 mb-4">
       <div class="card-header card-header-custom py-3 d-flex justify-content-between align-items-center">
-        <!-- 봉사 연도 선택 드롭다운 결합 -->
+        <!-- 봉사 연도 선택 드롭다운 -->
         <div class="d-flex align-items-center gap-2">
             <h5 class="mb-0 fw-semibold"><i class="bi bi-table me-2"></i>공개 강연 계획표</h5>
             <select id="serviceYearSelect" class="form-select form-select-sm shadow-sm border-0 fw-bold ms-2" style="width: auto; border-radius: 6px; cursor: pointer; background-color: rgba(255,255,255,0.9); color: var(--theme-blue);" onchange="changeServiceYear(this.value)">
@@ -219,7 +222,8 @@
           <div class="col-md-6 col-lg-7">
             <div class="input-group">
               <span class="input-group-text bg-light border-end-0"><i class="bi bi-search"></i></span>
-              <input type="text" id="searchInput" class="form-control border-start-0 ps-0" placeholder="제목, 연사명, 회중, 사회, 낭독, 기도, 마이크 이름 검색..." onkeyup="renderTable()">
+              <!-- 검색창 힌트 수정 -->
+              <input type="text" id="searchInput" class="form-control border-start-0 ps-0" placeholder="연설 번호, 제목, 연사, 회중 등 검색 (숫자 입력시 번호로만 검색됨)" onkeyup="renderTable()">
             </div>
           </div>
           <div class="col-md-6 col-lg-5 d-flex justify-content-md-end justify-content-start align-items-center gap-2 flex-wrap" id="topToolbar">
@@ -250,7 +254,7 @@
       </div>
     </div>
 
-    <!-- 사용자 관리 뷰 -->
+    <!-- 사용자 관리 및 형제 명단 관리 뷰 -->
     <div id="userManageView" class="card shadow-sm border-0" style="display: none;">
       <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-semibold"><i class="bi bi-gear-fill me-2"></i>사용자 및 담당자 관리</h5>
@@ -546,13 +550,13 @@ function formatDateToISO(dateObj) {
   return `${y}-${m}-${d}`;
 }
 
+// [수정됨] 화면(계획표/내보내기)에 연도는 숨기고 MM.DD 형태로만 출력
 function formatDisplayDate(dateStr) {
   const d = parseToDateObj(dateStr);
   if (!d) return dateStr;
-  const yy = String(d.getFullYear()).slice(-2);
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
-  return `${yy}.${mm}.${dd}`;
+  return `${mm}.${dd}`;
 }
 
 function getServiceYearRange(startYear) {
@@ -574,6 +578,7 @@ function generateSundays(start, end) {
   return sundays;
 }
 
+// [수정됨] 드롭다운에서 불필요한 과거(2024년 이전) 연도 숨김 처리
 function populateYearSelect() {
     const select = document.getElementById('serviceYearSelect');
     if (!select) return;
@@ -581,10 +586,11 @@ function populateYearSelect() {
     const today = new Date();
     const defaultYear = today.getMonth() >= 8 ? today.getFullYear() : today.getFullYear() - 1;
     
-    for (let y = defaultYear - 2; y <= defaultYear + 1; y++) {
+    // (defaultYear - 1) 부터 시작하여 깔끔하게 정리
+    for (let y = defaultYear - 1; y <= defaultYear + 1; y++) {
         const option = document.createElement('option');
         option.value = y;
-        let label = `${y} -${y+1}년도`;
+        let label = `${y} - ${y+1}년도`;
         if (y === defaultYear) label += " (현재)";
         option.text = label;
         if (y === currentServiceYear) option.selected = true;
@@ -917,7 +923,6 @@ function openOutlineModal() {
         actionBtns = `<div class="d-flex flex-nowrap align-items-center">${editBtn}${suspendBtn}</div>`;
     }
     
-    // 이 부분에서 기존 코드에 기호(`)가 빠져서 전체 사이트가 고장나는 심각한 오류가 있었습니다.
     container.innerHTML += `
       <li class="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
         <div class="d-flex align-items-center text-start" style="flex: 1;">
@@ -1082,47 +1087,75 @@ function highlightName(name, isoDateStr) {
   return `<span>${name}</span>`;
 }
 
+// [수정됨] 스마트 통합 검색 알고리즘 분리 적용
 function renderTable() {
   const tbody = document.getElementById('lectureTableBody');
   const search = document.getElementById('searchInput').value.trim().toLowerCase();
+  
+  // 입력된 검색어가 숫자만 있는지 판별
+  const isNumericSearch = /^\d+$/.test(search);
 
   displayList = [];
-  const range = getServiceYearRange(currentServiceYear);
-  const sundays = generateSundays(range.start, range.end);
   
-  let windowLectures = lectures.map((l, idx) => ({ ...l, originalIndex: idx })).filter(l => {
-    if(!l.date) return true;
-    const dObj = new Date(l.date + "T00:00:00");
-    return dObj >= range.start && dObj <= range.end;
-  });
+  if (search !== '') {
+    // 1. 검색 모드: 전체 연도의 모든 데이터에서 핀셋 검색 (빈 칸 제외)
+    let allLectures = lectures.map((l, idx) => ({ ...l, originalIndex: idx }));
+    
+    displayList = allLectures.filter(item => {
+      if (isNumericSearch) {
+        // 숫자만 입력했을 땐 무조건 '강연 번호'만 검색되도록 설정
+        return String(item.outlineNo).includes(search);
+      } else {
+        // 문자가 포함된 검색일 땐 강연번호, 날짜를 제외한 나머지 정보로 검색
+        const searchableText = (
+          (item.title || '') + 
+          (item.speaker || '') + 
+          (item.congregation || '') + 
+          (item.chairman || '') + 
+          (item.reader || '') + 
+          (item.prayer || '') + 
+          (item.mic1 || '') + 
+          (item.mic2 || '')
+        ).toLowerCase();
+        return searchableText.includes(search);
+      }
+    });
 
-  let coveredSet = new Set(windowLectures.map(l => l.date));
-  
-  sundays.forEach(sun => {
-    if (!coveredSet.has(sun)) {
-      windowLectures.push({ date: sun, outlineNo: "", title: "", speaker: "", congregation: "", chairman: "", reader: "", prayer: "", mic1: "", mic2: "", originalIndex: -1 });
-    }
-  });
+    displayList.sort((a, b) => {
+      const dA = parseToDateObj(a.date);
+      const dB = parseToDateObj(b.date);
+      if (!dA && !dB) return 0;
+      if (!dA) return 1;
+      if (!dB) return -1;
+      return dA - dB;
+    });
 
-  windowLectures.sort((a, b) => new Date(a.date + "T00:00:00") - new Date(b.date + "T00:00:00"));
-  displayList = windowLectures;
+  } else {
+    // 2. 평상시 모드: 선택된 봉사 연도의 계획표만 빈 칸을 포함하여 표시
+    const range = getServiceYearRange(currentServiceYear);
+    const sundays = generateSundays(range.start, range.end);
+    
+    let windowLectures = lectures.map((l, idx) => ({ ...l, originalIndex: idx })).filter(l => {
+      if(!l.date) return true;
+      const dObj = new Date(l.date + "T00:00:00");
+      return dObj >= range.start && dObj <= range.end;
+    });
+
+    let coveredSet = new Set(windowLectures.map(l => l.date));
+    
+    sundays.forEach(sun => {
+      if (!coveredSet.has(sun)) {
+        windowLectures.push({ date: sun, outlineNo: "", title: "", speaker: "", congregation: "", chairman: "", reader: "", prayer: "", mic1: "", mic2: "", originalIndex: -1 });
+      }
+    });
+
+    windowLectures.sort((a, b) => new Date(a.date + "T00:00:00") - new Date(b.date + "T00:00:00"));
+    displayList = windowLectures;
+  }
 
   tbody.innerHTML = '';
 
   displayList.forEach(item => {
-    const searchableText = (
-      (item.title || '') + 
-      (item.speaker || '') + 
-      (item.congregation || '') + 
-      (item.outlineNo || '') + 
-      (item.chairman || '') + 
-      (item.reader || '') + 
-      (item.prayer || '') + 
-      (item.mic1 || '') + 
-      (item.mic2 || '')
-    ).toLowerCase();
-
-    if (search === '' || searchableText.includes(search)) {
       const isPlaceholder = item.originalIndex === -1;
       const isSpecial = !isPlaceholder && !item.speaker && item.title;
       
@@ -1184,7 +1217,6 @@ function renderTable() {
         ${manageCellHTML}
       `;
       tbody.appendChild(tr);
-    }
   });
 }
 
