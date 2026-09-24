@@ -234,7 +234,7 @@
     <!-- 공개 강연 일정 목록 뷰 -->
     <div id="talkListView" class="card shadow-sm border-0 mb-4">
       <div class="card-header card-header-custom py-3 d-flex justify-content-between align-items-center">
-        <!-- 봉사 연도 선택 드롭다운 -->
+        <!-- 봉사 연도 선택 드롭다운 결합 -->
         <div class="d-flex align-items-center gap-2">
             <h5 class="mb-0 fw-semibold"><i class="bi bi-table me-2"></i>공개 강연 계획표</h5>
             <select id="serviceYearSelect" class="form-select form-select-sm shadow-sm border-0 fw-bold ms-2" style="width: auto; border-radius: 6px; cursor: pointer; background-color: rgba(255,255,255,0.9); color: var(--theme-blue);" onchange="changeServiceYear(this.value)">
@@ -388,6 +388,7 @@
           <input type="hidden" id="editIndex">
           <div class="row g-2 mb-3">
             <div class="col-md-6">
+              <!-- 달력형(Date Picker) 입력방식 적용 -->
               <label class="form-label fw-semibold">날짜</label>
               <input type="date" id="inputDate" class="form-control" oninput="handleDateInput()" required>
               <div id="sundayWarning" class="form-text text-danger mt-1" style="display: none; font-weight: bold; font-size: 0.8rem;"><i class="bi bi-exclamation-circle me-1"></i>이 날짜는 일요일이 아닙니다</div>
@@ -780,6 +781,9 @@ function doLogin() {
   const loadingScreen = document.getElementById('loadingScreen');
   loadingScreen.style.display = 'flex';
   
+  // [수정됨] 모바일은 2초, PC는 1초로 로딩 딜레이 다르게 적용
+  const loadingDelay = isMobile ? 2000 : 1000;
+  
   setTimeout(() => {
     loadingScreen.style.display = 'none';
     
@@ -801,7 +805,7 @@ function doLogin() {
     if (currentUserRole === 'USER') {
         checkUpcomingAssignments(isMobile);
     }
-  }, 2000);
+  }, loadingDelay);
 }
 
 function doLogout() {
@@ -1108,7 +1112,7 @@ function highlightName(name, isoDateStr) {
   }
 
   if (isFutureOrToday && currentUserRole === 'USER' && currentUserName && name.trim() === currentUserName.trim()) {
-    return `<span class="badge bg-warning text-dark fw-bold px-2 shadow-sm rounded-pill my-badge" style="font-size: 0.9rem; padding: 0.25rem 0.5rem;">${name}</span>`;
+    return `<span class="badge bg-warning text-dark fw-bold px-2 shadow-sm rounded-pill" style="font-size: 0.9rem; padding: 0.25rem 0.5rem;">${name}</span>`;
   }
   return `<span>${name}</span>`;
 }
@@ -1177,7 +1181,9 @@ function renderTable() {
 
   displayList.forEach(item => {
       const isPlaceholder = item.originalIndex === -1;
-      const isSpecial = !isPlaceholder && !item.speaker && item.title;
+      
+      // [수정됨] 강연 번호가 없으면 특수 이벤트로 판단
+      const isSpecial = !isPlaceholder && !item.outlineNo && item.title;
       
       const tr = document.createElement('tr');
       if (isSpecial) tr.className = 'special-event';
@@ -1186,7 +1192,7 @@ function renderTable() {
       const isSuspendedOutline = item.outlineNo && suspendedOutlines.includes(Number(item.outlineNo));
 
       let titleClass = item.title ? (isSuspendedOutline ? 'text-danger fw-bold' : 'text-dark') : 'text-muted fst-italic';
-      if (!item.outlineNo && item.title && !isPlaceholder) { titleClass += ' title-no-outline'; }
+      if (isSpecial) { titleClass += ' title-no-outline'; }
       
       let titleHTML = item.title || (isPlaceholder ? '등록된 일정이 없습니다' : '(미정)');
       if (isSuspendedOutline) {
@@ -1223,9 +1229,15 @@ function renderTable() {
       }
 
       let displayD = formatDisplayDate(item.date);
+      
+      // [신규] 날짜 텍스트 클래스 로직 (특수 이벤트일 경우 날짜도 볼드 처리)
+      let dateClass = isPlaceholder ? 'text-black-50' : 'text-secondary';
+      if (isSpecial) { 
+          dateClass = 'text-dark fw-bold'; 
+      }
 
       tr.innerHTML = `
-        <td class="${isPlaceholder ? 'text-black-50' : 'text-secondary'} text-nowrap">${displayD || '-'}</td>
+        <td class="${dateClass} text-nowrap">${displayD || '-'}</td>
         <td>${item.outlineNo ? `<span class="${outlineNoClass}">${item.outlineNo}</span>` : `<span class="text-muted">-</span>`}</td>
         <td class="text-center ${titleClass}">${titleHTML}</td>
         <td>${item.speaker ? highlightName(item.speaker, item.date) : `<span class="text-muted">-</span>`}</td>
