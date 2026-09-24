@@ -105,7 +105,7 @@
     }
   </style>
 
-  <!-- 스마트폰 아이콘 동적 생성 스크립트 (강연 글자는 살짝 작게, 영문은 더 크게 수정) -->
+  <!-- 스마트폰 아이콘 동적 생성 스크립트 -->
   <script>
     document.addEventListener("DOMContentLoaded", function() {
         const canvas = document.createElement('canvas');
@@ -121,7 +121,7 @@
         ctx.roundRect(0, 0, 512, 512, 115);
         ctx.fill();
 
-        // 메인 글자 '강연' (조금 더 작게: 190px)
+        // 메인 글자 '강연' (위치 고정)
         ctx.fillStyle = '#ffffff';
         ctx.font = '500 190px "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
         ctx.textAlign = 'center';
@@ -131,10 +131,10 @@
         ctx.shadowOffsetY = 2;
         ctx.fillText('강연', 256, 225);
         
-        // 하단 영문 'GANGHWA' (더 크게: 85px)
+        // 하단 영문 'GANGHWA' (크기 유지, 위치를 살짝 위로 395 -> 375 변경)
         ctx.font = 'normal 85px "Apple SD Gothic Neo", "Segoe UI", sans-serif';
         ctx.letterSpacing = '1px';
-        ctx.fillText('GANGHWA', 256, 400);
+        ctx.fillText('GANGHWA', 256, 375); 
         
         const dataURL = canvas.toDataURL('image/png');
         
@@ -177,19 +177,16 @@
 <div id="loadingScreen" class="justify-content-center align-items-center" style="display: none;">
   <div class="card shadow-lg border-0" style="width: 100%; max-width: 360px; border-radius: 16px; overflow: hidden;">
     <div class="text-center text-white py-5 px-4" style="background-color: var(--theme-blue);">
-      
       <!-- 스마트폰용 안내 문구 -->
       <div id="loadingMobile" style="display: none;">
         <i class="bi bi-phone-landscape fs-1 mb-3 d-block"></i>
         <h5 class="fw-bold mb-2 lh-base" style="word-break: keep-all; font-size: 1.1rem;">이 프로그램은 스마트폰의<br>가로 모드에 최적화 되어 있습니다.</h5>
       </div>
-      
       <!-- PC용 안내 문구 -->
       <div id="loadingPC" style="display: none;">
         <i class="bi bi-display fs-1 mb-3 d-block"></i>
         <h5 class="fw-bold mb-2 lh-base" style="word-break: keep-all; font-size: 1.1rem;">환영합니다.<br>시스템에 접속 중입니다...</h5>
       </div>
-
       <div class="spinner-border text-light mt-4" role="status" style="width: 1.5rem; height: 1.5rem; opacity: 0.8;">
         <span class="visually-hidden">Loading...</span>
       </div>
@@ -255,7 +252,7 @@
       <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-semibold"><i class="bi bi-gear-fill me-2"></i>사용자 및 담당자 관리</h5>
         <div>
-          <!-- 기존 데이터 복구 버튼 삭제됨 -->
+          <!-- 기존 데이터 복구 버튼 완벽히 삭제 됨 -->
           <button class="btn btn-sm btn-light fw-bold" onclick="switchView('talkListView')"><i class="bi bi-arrow-return-left me-1"></i>돌아가기</button>
         </div>
       </div>
@@ -474,7 +471,7 @@ const defaultOutlineTitles = {
   46: "끝까지 확신을 굳게 유지하십시오", 47: "”좋은 소식을 믿으십시오”", 48: "그리스도인들의 충성—시험받고 있다", 49: "이 땅이 과연 다시 깨끗해질 수 있는가?", 50: "지혜로운 결정—어떻게 내릴 수 있는가?", 
   51: "진리가 당신의 생활을 변화시키고 있는가?", 52: "당신의 하느님은 누구인가?", 53: "당신의 생각은 하느님의 생각과 일치한가?", 54: "하느님과 그분의 약속에 대한 믿음을 길러 나가십시오", 55: "하느님 앞에서 어떻게 좋은 이름을 얻을 수 있는가?", 
   56: "우리가 신뢰할 수 있는 지도자는 누구인가?", 57: "박해를 견디는 일", 58: "누가 그리스도의 참제자인가?", 60: "당신의 삶의 목적은 무엇인가?", 
-  61: "당신은 누구의 약속을 신뢰하는가?", 62: "어디에서 진정한 희망을 발견할 수 있는가?", 63: "진리를 찾을 수 있습니까?", 64: "당신은 ‘쾌락을 사랑하는 사람’이 될 것인가, ‘하느님을 사랑하는 사람’이 될 것인가?", 65: "분노가 가득한 세상에서 평화를 이루는 방법", 
+  61: "당신은 누구의 약속을 신뢰하는가?", 62: "어디에서 진정한 희망을 발견할 수 있는가?", 63: "진리를 찾을 수 있습니까?", 64: "당신은 ‘쾌락을 사랑하는 사람’이 될 것인가, ‘하느님을 사랑하는 파람’이 될 것인가?", 65: "분노가 가득한 세상에서 평화를 이루는 방법", 
   66: "당신은 수확하는 일에 참여할 것인가?", 67: "여호와의 말씀과 그분의 창조물에 대해 묵상하십시오", 68: "“계속 ··· 서로 기꺼이 용서하십시오”", 69: "왜 자기희생적인 사랑을 나타내야 하는가?", 70: "왜 하느님을 신뢰해야 하는가?", 
   71: "“깨어 있으십시오”—왜 그리고 어떻게?", 72: "사랑—참그리스도인 회중을 알아볼 수 있는 표", 73: "“지혜의 마음”을 얻으십시오", 74: "여호와께서는 우리를 살펴보고 계신다", 75: "개인 생활에서 여호와의 통치권을 지지하십시오", 
   76: "오늘날의 문제들에 대처하는 데 성서 원칙이 도움이 되는가?", 77: "“후대에 힘쓰십시오\"", 78: "기쁜 마음으로 여호와를 섬기십시오", 79: "당신은 하느님의 친구가 될 것인가, 세상의 친구가 될 것인가?", 80: "과학과 성경—당신은 어느 쪽에 희망을 두는가?", 
@@ -485,7 +482,7 @@ const defaultOutlineTitles = {
   101: "여호와—\"위대한 창조주”", 102: "“예언의 말씀”에 주의를 기울이십시오", 103: "어떻게 진정한 기쁨을 누릴 수 있는가?", 104: "부모 여러분—여러분은 내화 재료로 건축하고 있습니까?", 105: "모든 환난 중에 위로를 받음", 
   106: "땅을 파멸시키는 일로 인해 오게 될 하느님의 보응", 107: "당신은 훈련받은 양심을 통해 유익을 얻고 있는가?", 108: "당신도 확신을 가지고 미래를 맞이할 수 있다!", 109: "하느님의 왕국은 가까웠다", 110: "하느님을 첫째 자리에 둘 때 가정 생활에서 성공할 수 있다", 
   111: "인류를 완전히 치료하는 일—어떻게 가능한가?", 112: "이기적인 세상에서 사랑을 나타내는 방법", 113: "청소년들은 어떻게 행복하고 성공적인 삶을 살 수 있는가?", 114: "하느님의 경이로운 창조물들을 인식함", 115: "사탄의 교활한 행위로부터 자신을 보호하십시오", 
-  116: "친구를 지혜롭게 선택하라!", 117: "선으로 단을 이기는 방법", 118: "여호와의 관점에서 청소년을 바라봄", 119: "그리스도인은 세상과 분리되어 있다—그것이 유익한 이유", 120: "지금 하느님의 통치권에 복종해야 하는 이유", 
+  116: "친구를 지혜롭게 선택하라!", 117: "선으로 악을 이기는 방법", 118: "여호와의 관점에서 청소년을 바라봄", 119: "그리스도인은 세상과 분리되어 있다—그것이 유익한 이유", 120: "지금 하느님의 통치권에 복종해야 하는 이유", 
   121: "세계적인 형제들로 이루어진 조직과 함께 대재난에서 생존하십시오", 124: "성서의 저자가 하느님임을 확신할 수 있는 근거", 125: "인류에게 대속물이 필요한 이유", 
   126: "누가 구원을 받을 수 있는가?", 127: "사람이 죽으면 어떻게 되는가?", 128: "지옥은 실제로 불타는 고초의 장소인가?", 129: "삼위일체는 성경의 가르침인가?", 130: "땅은 영원히 있을 것이다", 
   131: "마귀에 맞서 굳게 서 있으십시오!", 132: "부활—죽음에 대한 승리!", 133: "인간의 기원—무엇을 믿느냐가 중요한가?", 134: "그리스도인은 안식일을 지켜야 하는가?", 135: "생명과 피의 신성함", 
@@ -582,7 +579,6 @@ function doLogin() {
       return;
   }
 
-  // 기기 환경 체크 (PC vs 모바일)
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   if (isMobile) {
       document.getElementById('loadingMobile').style.display = 'block';
@@ -868,6 +864,15 @@ function normalizeDateStr(dStr) {
   return dStr;
 }
 
+// 본인 이름 하이라이트 헬퍼 함수
+const highlightName = (name) => {
+  if (!name) return '';
+  if (currentUserRole === 'USER' && currentUserName && name === currentUserName) {
+    return `<span class="badge bg-warning text-dark fw-bold px-2 shadow-sm rounded-pill" style="font-size: 0.9rem; padding-top: 0.35rem; padding-bottom: 0.35rem;">${name}</span>`;
+  }
+  return `<span>${name}</span>`;
+};
+
 function renderTable() {
   const tbody = document.getElementById('lectureTableBody');
   const search = document.getElementById('searchInput').value.trim().toLowerCase();
@@ -933,7 +938,9 @@ function renderTable() {
       }
       
       let outlineNoClass = isSuspendedOutline ? 'text-danger fw-bold' : 'outline-text';
-      let micHTML = [item.mic1, item.mic2].filter(Boolean).join('<br>') || '';
+      
+      let micArr = [item.mic1 ? highlightName(item.mic1) : '', item.mic2 ? highlightName(item.mic2) : ''].filter(Boolean);
+      let micHTML = micArr.length > 0 ? micArr.join('<br>') : '<span class="text-muted">-</span>';
 
       let manageCellHTML = '';
       if (currentUserRole === 'ADMIN') {
@@ -961,11 +968,11 @@ function renderTable() {
         <td class="${isPlaceholder ? 'text-black-50' : 'text-secondary'} text-nowrap">${item.date || '-'}</td>
         <td>${item.outlineNo ? `<span class="${outlineNoClass}">${item.outlineNo}</span>` : `<span class="text-muted">-</span>`}</td>
         <td class="text-center ${titleClass}">${titleHTML}</td>
-        <td>${item.speaker ? `<span>${item.speaker}</span>` : `<span class="text-muted">-</span>`}</td>
+        <td>${item.speaker ? highlightName(item.speaker) : `<span class="text-muted">-</span>`}</td>
         <td>${item.congregation || '<span class="text-muted">-</span>'}</td>
-        <td>${item.chairman || '<span class="text-muted">-</span>'}</td>
-        <td>${item.reader || '<span class="text-muted">-</span>'}</td>
-        <td>${item.prayer || '<span class="text-muted">-</span>'}</td>
+        <td>${item.chairman ? highlightName(item.chairman) : `<span class="text-muted">-</span>`}</td>
+        <td>${item.reader ? highlightName(item.reader) : `<span class="text-muted">-</span>`}</td>
+        <td>${item.prayer ? highlightName(item.prayer) : `<span class="text-muted">-</span>`}</td>
         <td class="lh-sm">${micHTML}</td>
         ${manageCellHTML}
       `;
@@ -1126,7 +1133,7 @@ function deleteLecture(index) {
   }
 }
 
-// === 내보내기 기능 ===
+// === 내보내기 기능 (출력용은 하이라이트 없이 원래 텍스트로 렌더링됨) ===
 function exportToPDF() {
   let html = '';
   let chunks = [];
