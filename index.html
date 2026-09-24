@@ -162,7 +162,7 @@
         <input type="password" id="loginPw" class="form-control form-control-lg login-input fs-6" placeholder="비밀번호를 입력하세요" onkeypress="handleEnter(event)">
       </div>
       
-      <!-- [신규] 자동 로그인 체크박스 -->
+      <!-- 자동 로그인 체크박스 -->
       <div class="form-check mb-4 text-start ms-1">
         <input class="form-check-input shadow-sm" type="checkbox" id="autoLoginCheck" style="cursor: pointer;">
         <label class="form-check-label text-secondary fw-semibold" for="autoLoginCheck" style="font-size: 0.85rem; cursor: pointer;">
@@ -197,9 +197,10 @@
 <!-- 3. 메인 애플리케이션 화면 -->
 <div id="mainApp" class="py-4" style="display: none;">
   <div class="container-fluid px-4">
-    <div class="mb-4 pb-2 border-bottom text-center">
+    <!-- [신규 수정] 상단 타이틀 영역 (일반 사용자 로그인 시 숨김 처리됨) -->
+    <div id="topHeaderArea" class="mb-4 pb-2 border-bottom text-center">
       <h2 class="fw-bold mb-1" style="color: var(--theme-blue);"><i class="bi bi-calendar-week me-2"></i>공개 강연 일정 관리</h2>
-      <p class="text-muted mb-0">강연 제목과 초대 연사를 손쉽게 관리하세요.</p>
+      <p class="text-muted mb-0" style="font-size: 0.85rem;">강연 제목과 초대 연사를 손쉽게 관리하세요.</p>
     </div>
 
     <!-- 공개 강연 일정 목록 뷰 -->
@@ -252,6 +253,7 @@
       <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-semibold"><i class="bi bi-gear-fill me-2"></i>사용자 및 담당자 관리</h5>
         <div>
+          <!-- 복구 버튼 완전 제거됨 -->
           <button class="btn btn-sm btn-light fw-bold" onclick="switchView('talkListView')"><i class="bi bi-arrow-return-left me-1"></i>돌아가기</button>
         </div>
       </div>
@@ -559,7 +561,6 @@ document.addEventListener("DOMContentLoaded", () => {
   resetModal = new bootstrap.Modal(document.getElementById('resetModal'));
   outlineListModal = new bootstrap.Modal(document.getElementById('outlineListModal'));
   
-  // 자동 로그인 체크 (localStorage 확인)
   const savedRole = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
   const savedName = localStorage.getItem('userName') || sessionStorage.getItem('userName');
   
@@ -619,7 +620,7 @@ function doLogin() {
 
   const id = document.getElementById('loginId').value.trim();
   const pw = document.getElementById('loginPw').value.trim();
-  const isAutoLogin = document.getElementById('autoLoginCheck').checked; // 체크박스 상태 확인
+  const isAutoLogin = document.getElementById('autoLoginCheck').checked; 
 
   if (id === 'icganghwa' && pw === '191475') {
       currentUserRole = 'ADMIN';
@@ -653,7 +654,6 @@ function doLogin() {
   setTimeout(() => {
     loadingScreen.style.display = 'none';
     
-    // 자동 로그인 체크 여부에 따라 저장소 분리 설정
     if (isAutoLogin) {
         localStorage.setItem('userRole', currentUserRole);
         localStorage.setItem('userName', currentUserName);
@@ -679,7 +679,6 @@ function doLogout() {
   currentUserRole = null;
   currentUserName = "";
   
-  // 세션과 로컬 저장소 모두 깔끔하게 초기화
   sessionStorage.removeItem('userRole');
   sessionStorage.removeItem('userName');
   localStorage.removeItem('userRole');
@@ -687,7 +686,7 @@ function doLogout() {
   
   document.getElementById('loginId').value = '';
   document.getElementById('loginPw').value = '';
-  document.getElementById('autoLoginCheck').checked = false; // 체크 해제
+  document.getElementById('autoLoginCheck').checked = false; 
   
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('mainApp').style.display = 'none';
@@ -695,6 +694,7 @@ function doLogout() {
 }
 
 function applyRoleUI() {
+  const topHeaderArea = document.getElementById('topHeaderArea');
   const topToolbar = document.getElementById('topToolbar');
   const bottomToolbar = document.getElementById('bottomToolbar');
   const roleBadgeStr = document.getElementById('roleBadgeStr');
@@ -703,6 +703,7 @@ function applyRoleUI() {
   document.getElementById('btnAddOutline').style.display = (currentUserRole === 'ADMIN') ? 'block' : 'none';
 
   if (currentUserRole === 'ADMIN') {
+      topHeaderArea.style.display = 'block';
       topToolbar.innerHTML = `
         <button class="btn btn-outline-success fw-semibold px-3" onclick="exportToPDF()"><i class="bi bi-printer me-1"></i>내보내기</button>
         <button class="btn btn-outline-secondary fw-semibold px-3" onclick="switchView('userManageView')"><i class="bi bi-gear-fill me-1"></i>설정 및 관리</button>
@@ -717,6 +718,7 @@ function applyRoleUI() {
       roleBadgeStr.style.color = "#ffd700";
       manageHeader.style.display = 'table-cell';
   } else {
+      topHeaderArea.style.display = 'none';
       topToolbar.innerHTML = `
         <button class="btn btn-outline-success fw-semibold px-3" onclick="exportToPDF()"><i class="bi bi-printer me-1"></i>내보내기</button>
         <button class="btn btn-dark fw-semibold px-3" onclick="doLogout()"><i class="bi bi-box-arrow-right me-1"></i>로그아웃</button>
@@ -994,7 +996,6 @@ function normalizeDateStr(dStr) {
   return dStr;
 }
 
-// 화면용 하이라이트 함수 (과거 일정은 제외하고 미래/오늘 일정만 뱃지 적용)
 function highlightName(name, dateStr) {
   if (!name) return '';
   
