@@ -17,7 +17,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   
-  <!-- PDF 생성을 위한 외부 라이브러리 (앱 모드 인쇄 우회용) -->
+  <!-- PDF 생성을 위한 외부 라이브러리 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <style>
@@ -37,7 +37,6 @@
     .outline-text { font-size: 0.85rem; font-weight: 300; color: #475569; }
     .title-no-outline { font-weight: bold; font-style: italic; }
     
-    /* 배경색 전부 제거 (흰색 통일) */
     .special-event td { background-color: #ffffff; }
     .empty-slot td { background-color: #ffffff; color: #94a3b8; }
 
@@ -49,7 +48,7 @@
       vertical-align: middle; 
     }
     
-    .schedule-table { min-width: 1000px; } /* PC 등 기본 표 최소 너비 */
+    .schedule-table { min-width: 1000px; } 
 
     #loginScreen, #loadingScreen { background-color: #f1f5f9; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; display: flex; }
     .login-input { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
@@ -115,7 +114,7 @@
       
       .table-scroll-container { max-height: 75vh !important; }
       
-      /* 표의 전체 너비를 콘텐츠에 맞게 자유롭게 확장시킴 */
+      /* 표의 전체 너비를 콘텐츠에 맞게 확장 */
       .schedule-table { 
           min-width: 100% !important; 
           width: max-content !important; 
@@ -562,11 +561,12 @@ const defaultOutlineTitles = {
   191: "사랑과 믿음이 세상을 이기는 방법", 192: "당신은 영원한 생명에 이르는 길을 걷고 있는가?", 193: "세계적 고난의 때에 있을 구출", 194: "경건한 지혜는 우리에게 어떻게 유익을 주는가?"
 };
 
+// [버그 픽스] 안전한 날짜 파싱 함수
 function parseToDateObj(dateStr) {
   if (!dateStr) return null;
   if (dateStr.includes('-')) {
     const parts = dateStr.split('-');
-    if (parts.length === 3) return new Date(parts[0], parts[1]-1, parts[2]);
+    if (parts.length === 3) return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10)-1, parseInt(parts[2], 10));
   }
   const match = String(dateStr).match(/(\d{1,2})월\s*(\d{1,2})일/);
   if (match) {
@@ -589,7 +589,7 @@ function formatDateToISO(dateObj) {
   return `${y}-${m}-${d}`;
 }
 
-// 화면 및 인쇄물에 출력되는 날짜 형태를 'MM월 DD일' 포맷으로 표시
+// 기본 화면/인쇄용 날짜 포맷 (MM월 DD일)
 function formatDisplayDate(dateStr) {
   const d = parseToDateObj(dateStr);
   if (!d) return dateStr;
@@ -598,7 +598,7 @@ function formatDisplayDate(dateStr) {
   return `${mm}월 ${dd}일`;
 }
 
-// 검색 화면 전용 날짜 포맷 (YY년 MM월 DD일)
+// 검색 전용 날짜 포맷 (YY년 MM월 DD일)
 function formatSearchDisplayDate(dateStr) {
   const d = parseToDateObj(dateStr);
   if (!d) return dateStr;
@@ -801,7 +801,7 @@ function doLogin() {
   const loadingScreen = document.getElementById('loadingScreen');
   loadingScreen.style.display = 'flex';
   
-  // PC 접속 시에는 1초만 보여줌
+  // [요청 반영] PC 접속 시에는 1초만 보여줌
   const loadingDelay = isMobile ? 2000 : 1000;
   
   setTimeout(() => {
@@ -872,6 +872,7 @@ function applyRoleUI() {
       manageHeader.style.display = 'table-cell';
   } else {
       topHeaderArea.style.display = 'none';
+      // [요청 반영] 일반 사용자는 내보내기 버튼 삭제
       topToolbar.innerHTML = `
         <button class="btn btn-dark fw-semibold px-3" onclick="doLogout()"><i class="bi bi-box-arrow-right me-1"></i>로그아웃</button>
       `;
@@ -1122,11 +1123,13 @@ function highlightName(name, isoDateStr) {
   
   let isFutureOrToday = true; 
   if (isoDateStr) {
-    const d = new Date(isoDateStr + "T00:00:00");
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    if (d.getTime() < today.getTime()) {
-      isFutureOrToday = false; 
+    const d = parseToDateObj(isoDateStr);
+    if (d) {
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      if (d.getTime() < today.getTime()) {
+        isFutureOrToday = false; 
+      }
     }
   }
 
@@ -1181,7 +1184,8 @@ function renderTable() {
     
     let windowLectures = lectures.map((l, idx) => ({ ...l, originalIndex: idx })).filter(l => {
       if(!l.date) return true;
-      const dObj = new Date(l.date + "T00:00:00");
+      const dObj = parseToDateObj(l.date);
+      if (!dObj) return true;
       return dObj >= range.start && dObj <= range.end;
     });
 
@@ -1193,7 +1197,15 @@ function renderTable() {
       }
     });
 
-    windowLectures.sort((a, b) => new Date(a.date + "T00:00:00") - new Date(b.date + "T00:00:00"));
+    windowLectures.sort((a, b) => {
+      const dA = parseToDateObj(a.date);
+      const dB = parseToDateObj(b.date);
+      if (!dA && !dB) return 0;
+      if (!dA) return 1;
+      if (!dB) return -1;
+      return dA - dB;
+    });
+    
     displayList = windowLectures;
   }
 
@@ -1248,6 +1260,7 @@ function renderTable() {
 
       let displayD = isSearching ? formatSearchDisplayDate(item.date) : formatDisplayDate(item.date);
       
+      // [요청 반영] 강연 번호가 없으면 날짜를 볼드체로 변경
       let dateClass = isPlaceholder ? 'text-black-50' : 'text-secondary';
       if (isSpecial) { 
           dateClass = 'text-dark fw-bold'; 
@@ -1275,7 +1288,8 @@ function executeReset() {
   const range = getServiceYearRange(currentServiceYear);
   lectures = lectures.filter(l => {
     if(!l.date) return true;
-    const dObj = new Date(l.date + "T00:00:00");
+    const dObj = parseToDateObj(l.date);
+    if (!dObj) return true;
     return dObj < range.start || dObj > range.end;
   });
   saveToFirebase(); 
@@ -1297,8 +1311,8 @@ function checkIfSunday() {
   const dateStr = document.getElementById('inputDate').value;
   const warningEl = document.getElementById('sundayWarning');
   if (!dateStr) { warningEl.style.display = 'none'; return; }
-  const dateObj = new Date(dateStr + "T00:00:00");
-  if (dateObj.getDay() !== 0) warningEl.style.display = 'block';
+  const dateObj = parseToDateObj(dateStr);
+  if (dateObj && dateObj.getDay() !== 0) warningEl.style.display = 'block';
   else warningEl.style.display = 'none';
 }
 
