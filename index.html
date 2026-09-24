@@ -95,57 +95,49 @@
         padding: 0 !important; margin: 0 auto !important; max-width: 100% !important; box-shadow: none !important; 
         width: 99%; 
       }
-      #printContent th, #printContent td {
-        border: 1px solid #000 !important; 
-      }
+      #printContent th, #printContent td { border: 1px solid #000 !important; }
     }
   </style>
 
-  <!-- 스마트폰 아이콘 동적 생성 스크립트 (우측 아이콘 스타일로 완벽 교체) -->
+  <!-- 스마트폰 아이콘 동적 생성 스크립트 (글자 크기 확대 적용) -->
   <script>
     document.addEventListener("DOMContentLoaded", function() {
         const canvas = document.createElement('canvas');
         canvas.width = 512; canvas.height = 512;
         const ctx = canvas.getContext('2d');
         
-        // 1. 차분하고 고급스러운 단일톤의 블루 그라데이션 (광택 제거)
+        // 차분한 단일톤 블루 그라데이션
         const gradient = ctx.createLinearGradient(0, 0, 0, 512);
         gradient.addColorStop(0, '#5f7eb0'); 
         gradient.addColorStop(1, '#4a6796'); 
         ctx.fillStyle = gradient;
         
-        // 바탕 둥근 사각형 그리기
         ctx.beginPath();
         ctx.roundRect(0, 0, 512, 512, 115);
         ctx.fill();
 
-        // 2. 메인 글자 '강연' (우측 아이콘처럼 얇고 세련된 고딕체)
+        // 메인 글자 '강연' (크기 210px로 확대)
         ctx.fillStyle = '#ffffff';
-        // 두께를 bold 대신 500(Medium)이나 normal로 조절, 크기도 약간 줄임
-        ctx.font = '500 170px "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+        ctx.font = '500 210px "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        
-        // 글자를 약간 또렷하게 만들기 위한 미세 그림자
         ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
         ctx.shadowBlur = 4;
         ctx.shadowOffsetY = 2;
-        ctx.fillText('강연', 256, 235);
+        ctx.fillText('강연', 256, 220);
         
-        // 3. 하단 영문 'GANGHWA' (비율과 굵기 매칭)
-        ctx.font = 'normal 55px "Apple SD Gothic Neo", "Segoe UI", sans-serif';
+        // 하단 영문 'GANGHWA' (크기 70px로 확대)
+        ctx.font = 'normal 70px "Apple SD Gothic Neo", "Segoe UI", sans-serif';
         ctx.letterSpacing = '1px';
-        ctx.fillText('GANGHWA', 256, 385);
+        ctx.fillText('GANGHWA', 256, 395);
         
         const dataURL = canvas.toDataURL('image/png');
         
-        // 애플 기기 바탕화면용 아이콘 등록
         const appleIcon = document.createElement('link');
         appleIcon.rel = 'apple-touch-icon';
         appleIcon.href = dataURL;
         document.head.appendChild(appleIcon);
         
-        // 브라우저 파비콘 등록
         const favIcon = document.createElement('link');
         favIcon.rel = 'icon';
         favIcon.href = dataURL;
@@ -176,12 +168,23 @@
   </div>
 </div>
 
-<!-- 2. 로그인 완료 후 표시되는 가로모드 안내 로딩 화면 -->
+<!-- 2. 로그인 완료 후 표시되는 기기 맞춤형 로딩 화면 -->
 <div id="loadingScreen" class="justify-content-center align-items-center" style="display: none;">
   <div class="card shadow-lg border-0" style="width: 100%; max-width: 360px; border-radius: 16px; overflow: hidden;">
     <div class="text-center text-white py-5 px-4" style="background-color: var(--theme-blue);">
-      <i class="bi bi-phone-landscape fs-1 mb-3 d-block"></i>
-      <h5 class="fw-bold mb-2 lh-base" style="word-break: keep-all; font-size: 1.1rem;">이 프로그램은 스마트폰의<br>가로 모드에 최적화 되어 있습니다.</h5>
+      
+      <!-- 스마트폰용 안내 문구 -->
+      <div id="loadingMobile" style="display: none;">
+        <i class="bi bi-phone-landscape fs-1 mb-3 d-block"></i>
+        <h5 class="fw-bold mb-2 lh-base" style="word-break: keep-all; font-size: 1.1rem;">이 프로그램은 스마트폰의<br>가로 모드에 최적화 되어 있습니다.</h5>
+      </div>
+      
+      <!-- PC용 안내 문구 -->
+      <div id="loadingPC" style="display: none;">
+        <i class="bi bi-display fs-1 mb-3 d-block"></i>
+        <h5 class="fw-bold mb-2 lh-base" style="word-break: keep-all; font-size: 1.1rem;">환영합니다.<br>시스템에 접속 중입니다...</h5>
+      </div>
+
       <div class="spinner-border text-light mt-4" role="status" style="width: 1.5rem; height: 1.5rem; opacity: 0.8;">
         <span class="visually-hidden">Loading...</span>
       </div>
@@ -599,6 +602,16 @@ function doLogin() {
   } else {
       alert('아이디(이름) 또는 비밀번호가 일치하지 않습니다.');
       return;
+  }
+
+  // 기기 환경 체크 (PC vs 모바일)
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (isMobile) {
+      document.getElementById('loadingMobile').style.display = 'block';
+      document.getElementById('loadingPC').style.display = 'none';
+  } else {
+      document.getElementById('loadingMobile').style.display = 'none';
+      document.getElementById('loadingPC').style.display = 'block';
   }
 
   document.getElementById('loginScreen').style.display = 'none';
@@ -1207,9 +1220,6 @@ function closePrintView() {
   document.getElementById('printContent').innerHTML = '';
 }
 
-// ==========================================
-// 스마트폰 앱(Standalone) 모드 인쇄 우회 기능 (PDF 생성 후 공유)
-// ==========================================
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   
