@@ -161,6 +161,15 @@
         <label class="form-label fw-semibold text-secondary" style="font-size: 0.85rem;">비밀번호</label>
         <input type="password" id="loginPw" class="form-control form-control-lg login-input fs-6" placeholder="비밀번호를 입력하세요" onkeypress="handleEnter(event)">
       </div>
+      
+      <!-- [신규] 자동 로그인 체크박스 -->
+      <div class="form-check mb-4 text-start ms-1">
+        <input class="form-check-input shadow-sm" type="checkbox" id="autoLoginCheck" style="cursor: pointer;">
+        <label class="form-check-label text-secondary fw-semibold" for="autoLoginCheck" style="font-size: 0.85rem; cursor: pointer;">
+          자동 로그인
+        </label>
+      </div>
+
       <button class="btn btn-theme btn-lg w-100 fw-bold" style="border-radius: 8px;" onclick="doLogin()">로그인</button>
     </div>
   </div>
@@ -405,13 +414,10 @@
   </div>
 </div>
 
-<!-- ==============================================
-     [신규] 내 일정 알림 모달창 (제목 삭제, 가운데 정렬 완료)
-     ============================================== -->
+<!-- 내 일정 알림 모달창 -->
 <div class="modal fade" id="assignmentAlertModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-sm">
     <div class="modal-content border-0 shadow">
-      <!-- 모달 제목(Header) 부분을 완전히 삭제했습니다 -->
       <div class="modal-body text-center p-4 pb-3">
         <div id="assignmentAlertContent" class="mb-0"></div>
       </div>
@@ -464,7 +470,6 @@ let suspendedOutlines = [];
 let brotherNames = []; 
 let outlineTitles = {};
 
-// 오디오 컨텍스트 (소리 알림용)
 let audioCtx;
 
 const defaultBrotherNames = ["강용호", "김가우", "김대성", "김선정", "김윤건", "김현유", "민경태", "박남섭", "박수현", "박인규", "서금모", "서성남", "서영석", "은지상", "이석재", "이정로", "이찬호", "임동수", "장세관", "정용기", "조건희", "조오진", "주범서", "지역환", "차재승", "한일봉"];
@@ -509,7 +514,6 @@ const defaultOutlineTitles = {
   186: "하느님의 행복한 백성과 연합하십시오", 187: "사랑의 하느님께서 왜 악을 허용하시는가?", 188: "당신은 여호와께 확신을 두고 있는가?", 189: "하느님과 함께 걸으면 지금부터 영원히 축복을 받는다", 190: "하느님께서 약속하신 완전하고 행복한 가정", 
   191: "사랑과 믿음이 세상을 이기는 방법", 192: "당신은 영원한 생명에 이르는 길을 걷고 있는가?", 193: "세계적 고난의 때에 있을 구출", 194: "경건한 지혜는 우리에게 어떻게 유익을 주는가?"
 };
-const initialData = [];
 
 database.ref('public_talks_app').on('value', (snapshot) => {
   const data = snapshot.val();
@@ -555,8 +559,10 @@ document.addEventListener("DOMContentLoaded", () => {
   resetModal = new bootstrap.Modal(document.getElementById('resetModal'));
   outlineListModal = new bootstrap.Modal(document.getElementById('outlineListModal'));
   
-  const savedRole = sessionStorage.getItem('userRole');
-  const savedName = sessionStorage.getItem('userName');
+  // 자동 로그인 체크 (localStorage 확인)
+  const savedRole = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
+  const savedName = localStorage.getItem('userName') || sessionStorage.getItem('userName');
+  
   if(savedRole && savedName) {
       currentUserRole = savedRole;
       currentUserName = savedName;
@@ -564,10 +570,14 @@ document.addEventListener("DOMContentLoaded", () => {
       document.getElementById('loginScreen').style.display = 'none';
       document.getElementById('mainApp').style.display = 'block';
       applyRoleUI();
+      
+      if (currentUserRole === 'USER') {
+          const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+          setTimeout(() => { checkUpcomingAssignments(isMobile); }, 500);
+      }
   }
 });
 
-// 브라우저 정책상 사용자 클릭 시 즉시 오디오 권한을 따내기 위한 함수
 function initAudioContext() {
   if (!audioCtx) {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -580,7 +590,6 @@ function initAudioContext() {
   }
 }
 
-// 부드러운 알림 사운드 생성 (MP3 파일 없이 작동)
 function playNotificationSound() {
   if (!audioCtx) return;
   try {
@@ -606,10 +615,11 @@ function playNotificationSound() {
 function handleEnter(e) { if (e.key === 'Enter' || e.keyCode === 13) { doLogin(); } }
 
 function doLogin() {
-  initAudioContext(); // 사운드 권한 즉시 확보
+  initAudioContext(); 
 
   const id = document.getElementById('loginId').value.trim();
   const pw = document.getElementById('loginPw').value.trim();
+  const isAutoLogin = document.getElementById('autoLoginCheck').checked; // 체크박스 상태 확인
 
   if (id === 'icganghwa' && pw === '191475') {
       currentUserRole = 'ADMIN';
@@ -643,13 +653,22 @@ function doLogin() {
   setTimeout(() => {
     loadingScreen.style.display = 'none';
     
-    sessionStorage.setItem('userRole', currentUserRole);
-    sessionStorage.setItem('userName', currentUserName);
+    // 자동 로그인 체크 여부에 따라 저장소 분리 설정
+    if (isAutoLogin) {
+        localStorage.setItem('userRole', currentUserRole);
+        localStorage.setItem('userName', currentUserName);
+        sessionStorage.removeItem('userRole'); 
+        sessionStorage.removeItem('userName');
+    } else {
+        sessionStorage.setItem('userRole', currentUserRole);
+        sessionStorage.setItem('userName', currentUserName);
+        localStorage.removeItem('userRole'); 
+        localStorage.removeItem('userName');
+    }
     
     document.getElementById('mainApp').style.display = 'block';
     applyRoleUI();
 
-    // 일반 사용자일 경우 이번 주, 다음 주 일정 체크하여 알림 띄우기
     if (currentUserRole === 'USER') {
         checkUpcomingAssignments(isMobile);
     }
@@ -659,10 +678,17 @@ function doLogin() {
 function doLogout() {
   currentUserRole = null;
   currentUserName = "";
+  
+  // 세션과 로컬 저장소 모두 깔끔하게 초기화
   sessionStorage.removeItem('userRole');
   sessionStorage.removeItem('userName');
+  localStorage.removeItem('userRole');
+  localStorage.removeItem('userName');
+  
   document.getElementById('loginId').value = '';
   document.getElementById('loginPw').value = '';
+  document.getElementById('autoLoginCheck').checked = false; // 체크 해제
+  
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('mainApp').style.display = 'none';
   switchView('talkListView');
@@ -747,7 +773,6 @@ function checkUpcomingAssignments(isMobile) {
     if (myAssignments.length > 0) {
         document.getElementById('assignmentAlertContent').innerHTML = myAssignments.join('');
         
-        // 모바일 접속 시에만 소리 알림 재생
         if (isMobile) {
             playNotificationSound();
         }
@@ -1253,7 +1278,6 @@ function deleteLecture(index) {
   }
 }
 
-// === 내보내기 기능 (출력용 문서는 하이라이트 없이 원래 텍스트로 깔끔하게 렌더링) ===
 function exportToPDF() {
   let html = '';
   let chunks = [];
