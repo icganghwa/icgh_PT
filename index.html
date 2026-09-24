@@ -161,15 +161,12 @@
         <label class="form-label fw-semibold text-secondary" style="font-size: 0.85rem;">비밀번호</label>
         <input type="password" id="loginPw" class="form-control form-control-lg login-input fs-6" placeholder="비밀번호를 입력하세요" onkeypress="handleEnter(event)">
       </div>
-      
-      <!-- 자동 로그인 체크박스 -->
       <div class="form-check mb-4 text-start ms-1">
         <input class="form-check-input shadow-sm" type="checkbox" id="autoLoginCheck" style="cursor: pointer;">
         <label class="form-check-label text-secondary fw-semibold" for="autoLoginCheck" style="font-size: 0.85rem; cursor: pointer;">
           자동 로그인
         </label>
       </div>
-
       <button class="btn btn-theme btn-lg w-100 fw-bold" style="border-radius: 8px;" onclick="doLogin()">로그인</button>
     </div>
   </div>
@@ -206,7 +203,7 @@
     <!-- 공개 강연 일정 목록 뷰 -->
     <div id="talkListView" class="card shadow-sm border-0 mb-4">
       <div class="card-header card-header-custom py-3 d-flex justify-content-between align-items-center">
-        <!-- 봉사 연도 선택 드롭다운 -->
+        <!-- 봉사 연도 선택 드롭다운 결합 -->
         <div class="d-flex align-items-center gap-2">
             <h5 class="mb-0 fw-semibold"><i class="bi bi-table me-2"></i>공개 강연 계획표</h5>
             <select id="serviceYearSelect" class="form-select form-select-sm shadow-sm border-0 fw-bold ms-2" style="width: auto; border-radius: 6px; cursor: pointer; background-color: rgba(255,255,255,0.9); color: var(--theme-blue);" onchange="changeServiceYear(this.value)">
@@ -359,7 +356,6 @@
           <input type="hidden" id="editIndex">
           <div class="row g-2 mb-3">
             <div class="col-md-6">
-              <!-- 달력형(Date Picker) 입력방식 적용 -->
               <label class="form-label fw-semibold">날짜</label>
               <input type="date" id="inputDate" class="form-control" oninput="handleDateInput()" required>
               <div id="sundayWarning" class="form-text text-danger mt-1" style="display: none; font-weight: bold; font-size: 0.8rem;"><i class="bi bi-exclamation-circle me-1"></i>이 날짜는 일요일이 아닙니다</div>
@@ -421,7 +417,6 @@
   </div>
 </div>
 
-<!-- 내 일정 알림 모달창 -->
 <div class="modal fade" id="assignmentAlertModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-sm">
     <div class="modal-content border-0 shadow">
@@ -563,7 +558,7 @@ function formatDisplayDate(dateStr) {
 function getServiceYearRange(startYear) {
   let firstDay = new Date(startYear, 8, 1); 
   let firstSunday = new Date(firstDay);
-  firstSunday.setDate(1 + (7 - firstDay.getDay()) % 7);
+  firstSunday.setDate(firstDay.getDate() + (7 - firstDay.getDay()) % 7);
   if (firstDay.getDay() === 0) firstSunday = firstDay; 
   let endDate = new Date(startYear + 1, 7, 31, 23, 59, 59); 
   return { start: firstSunday, end: endDate };
@@ -589,7 +584,7 @@ function populateYearSelect() {
     for (let y = defaultYear - 2; y <= defaultYear + 1; y++) {
         const option = document.createElement('option');
         option.value = y;
-        let label = `${y} - ${y+1}년도`;
+        let label = `${y} -${y+1}년도`;
         if (y === defaultYear) label += " (현재)";
         option.text = label;
         if (y === currentServiceYear) option.selected = true;
@@ -922,6 +917,7 @@ function openOutlineModal() {
         actionBtns = `<div class="d-flex flex-nowrap align-items-center">${editBtn}${suspendBtn}</div>`;
     }
     
+    // 이 부분에서 기존 코드에 기호(`)가 빠져서 전체 사이트가 고장나는 심각한 오류가 있었습니다.
     container.innerHTML += `
       <li class="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
         <div class="d-flex align-items-center text-start" style="flex: 1;">
