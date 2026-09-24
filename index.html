@@ -222,7 +222,6 @@
           <div class="col-md-6 col-lg-7">
             <div class="input-group">
               <span class="input-group-text bg-light border-end-0"><i class="bi bi-search"></i></span>
-              <!-- 검색창 힌트 수정 -->
               <input type="text" id="searchInput" class="form-control border-start-0 ps-0" placeholder="연설 번호, 제목, 연사, 회중 등 검색 (숫자 입력시 번호로만 검색됨)" onkeyup="renderTable()">
             </div>
           </div>
@@ -234,7 +233,7 @@
         <table class="table table-hover table-bordered align-middle mb-0 text-center" style="min-width: 1000px;">
           <thead class="bg-white">
             <tr>
-              <th style="width: 95px; white-space: nowrap;">날짜</th>
+              <th style="width: 100px; white-space: nowrap;">날짜</th>
               <th style="width: 70px;">번호</th>
               <th class="text-center">제목</th>
               <th style="width: 90px;">연사</th>
@@ -550,13 +549,13 @@ function formatDateToISO(dateObj) {
   return `${y}-${m}-${d}`;
 }
 
-// [수정됨] 화면(계획표/내보내기)에 연도는 숨기고 MM.DD 형태로만 출력
+// [요청 반영] 화면 및 인쇄물에 출력되는 날짜 형태를 'MM월 DD일' 포맷으로 변경
 function formatDisplayDate(dateStr) {
   const d = parseToDateObj(dateStr);
   if (!d) return dateStr;
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
-  return `${mm}.${dd}`;
+  return `${mm}월 ${dd}일`;
 }
 
 function getServiceYearRange(startYear) {
@@ -578,7 +577,6 @@ function generateSundays(start, end) {
   return sundays;
 }
 
-// [수정됨] 드롭다운에서 불필요한 과거(2024년 이전) 연도 숨김 처리
 function populateYearSelect() {
     const select = document.getElementById('serviceYearSelect');
     if (!select) return;
@@ -586,7 +584,6 @@ function populateYearSelect() {
     const today = new Date();
     const defaultYear = today.getMonth() >= 8 ? today.getFullYear() : today.getFullYear() - 1;
     
-    // (defaultYear - 1) 부터 시작하여 깔끔하게 정리
     for (let y = defaultYear - 1; y <= defaultYear + 1; y++) {
         const option = document.createElement('option');
         option.value = y;
@@ -1087,26 +1084,21 @@ function highlightName(name, isoDateStr) {
   return `<span>${name}</span>`;
 }
 
-// [수정됨] 스마트 통합 검색 알고리즘 분리 적용
 function renderTable() {
   const tbody = document.getElementById('lectureTableBody');
   const search = document.getElementById('searchInput').value.trim().toLowerCase();
   
-  // 입력된 검색어가 숫자만 있는지 판별
   const isNumericSearch = /^\d+$/.test(search);
 
   displayList = [];
   
   if (search !== '') {
-    // 1. 검색 모드: 전체 연도의 모든 데이터에서 핀셋 검색 (빈 칸 제외)
     let allLectures = lectures.map((l, idx) => ({ ...l, originalIndex: idx }));
     
     displayList = allLectures.filter(item => {
       if (isNumericSearch) {
-        // 숫자만 입력했을 땐 무조건 '강연 번호'만 검색되도록 설정
         return String(item.outlineNo).includes(search);
       } else {
-        // 문자가 포함된 검색일 땐 강연번호, 날짜를 제외한 나머지 정보로 검색
         const searchableText = (
           (item.title || '') + 
           (item.speaker || '') + 
@@ -1131,7 +1123,6 @@ function renderTable() {
     });
 
   } else {
-    // 2. 평상시 모드: 선택된 봉사 연도의 계획표만 빈 칸을 포함하여 표시
     const range = getServiceYearRange(currentServiceYear);
     const sundays = generateSundays(range.start, range.end);
     
