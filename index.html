@@ -415,6 +415,26 @@
   </div>
 </div>
 
+<!-- ==============================================
+     [신규] 내 일정 알림 모달창 (로그인 시 자동 팝업)
+     ============================================== -->
+<div class="modal fade" id="assignmentAlertModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-warning text-dark border-0">
+        <h6 class="modal-title fw-bold"><i class="bi bi-bell-fill me-2"></i>다가오는 일정 알림</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center p-4">
+        <div id="assignmentAlertContent" class="mb-0"></div>
+      </div>
+      <div class="modal-footer border-0 justify-content-center pt-0">
+        <button type="button" class="btn btn-dark px-4 rounded-pill fw-bold" data-bs-dismiss="modal">확인했습니다</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 인쇄용 오버레이 화면 -->
 <div id="printOverlay">
   <div id="printControlsBar" class="print-controls sticky-top bg-dark text-white p-3 d-flex justify-content-between align-items-center shadow-sm">
@@ -456,6 +476,9 @@ let allowedUsers = [];
 let suspendedOutlines = []; 
 let brotherNames = []; 
 let outlineTitles = {};
+
+// 오디오 컨텍스트 (소리 알림용)
+let audioCtx;
 
 const defaultBrotherNames = ["강용호", "김가우", "김대성", "김선정", "김윤건", "김현유", "민경태", "박남섭", "박수현", "박인규", "서금모", "서성남", "서영석", "은지상", "이석재", "이정로", "이찬호", "임동수", "장세관", "정용기", "조건희", "조오진", "주범서", "지역환", "차재승", "한일봉"];
 const defaultOutlineTitles = {
@@ -557,9 +580,47 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+// 브라우저 정책상 사용자 클릭 시 즉시 오디오 권한을 따내기 위한 함수
+function initAudioContext() {
+  if (!audioCtx) {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (AudioContext) {
+          audioCtx = new AudioContext();
+      }
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+  }
+}
+
+// 부드러운 알림 사운드 생성 (MP3 파일 없이 작동)
+function playNotificationSound() {
+  if (!audioCtx) return;
+  try {
+      const osc = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(600, audioCtx.currentTime); // 맑고 부드러운 톤
+      osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1); 
+      
+      gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.05);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+      
+      osc.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.5);
+  } catch(e) { console.log("사운드 재생 실패:", e); }
+}
+
 function handleEnter(e) { if (e.key === 'Enter' || e.keyCode === 13) { doLogin(); } }
 
 function doLogin() {
+  initAudioContext(); // 사운드 권한 즉시 확보
+
   const id = document.getElementById('loginId').value.trim();
   const pw = document.getElementById('loginPw').value.trim();
 
@@ -600,6 +661,11 @@ function doLogin() {
     
     document.getElementById('mainApp').style.display = 'block';
     applyRoleUI();
+
+    // 일반 사용자일 경우 이번 주, 다음 주 일정 체크하여 알림 띄우기
+    if (currentUserRole === 'USER') {
+        checkUpcomingAssignments();
+    }
   }, 2000);
 }
 
@@ -650,6 +716,53 @@ function applyRoleUI() {
       manageHeader.style.display = 'none';
   }
   renderTable();
+}
+
+function checkUpcomingAssignments() {
+    if (!currentUserName) return;
+    
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    let daysUntilSunday = today.getDay() === 0 ? 0 : 7 - today.getDay();
+    
+    let thisSunday = new Date(today);
+    thisSunday.setDate(today.getDate() + daysUntilSunday);
+    let nextSunday = new Date(thisSunday);
+    nextSunday.setDate(thisSunday.getDate() + 7);
+    
+    let myAssignments = [];
+    
+    lectures.forEach(l => {
+        const d = parseToDateObj(l.date);
+        if (!d) return;
+        
+        if (d.getTime() === thisSunday.getTime() || d.getTime() === nextSunday.getTime()) {
+            let roles = [];
+            if (l.speaker === currentUserName) roles.push('연사');
+            if (l.chairman === currentUserName) roles.push('사회');
+            if (l.reader === currentUserName) roles.push('낭독');
+            if (l.prayer === currentUserName) roles.push('기도');
+            if (l.mic1 === currentUserName || l.mic2 === currentUserName) roles.push('마이크');
+            
+            if (roles.length > 0) {
+                let weekLabel = (d.getTime() === thisSunday.getTime()) ? '이번 주' : '다음 주';
+                myAssignments.push(`
+                    <div class="mb-3 p-3 bg-light rounded-3 text-start border border-warning shadow-sm">
+                        <span class="badge bg-warning text-dark mb-2 fs-6 py-2 px-3 shadow-sm rounded-pill">${weekLabel} (${l.date})</span><br>
+                        <span class="fw-bold text-dark" style="font-size: 1.1rem;">${currentUserName}</span> 형제님은<br>
+                        <span class="fw-bold" style="font-size: 1.15rem; color: var(--theme-blue);">『${roles.join(', ')}』</span> 담당이십니다.
+                    </div>
+                `);
+            }
+        }
+    });
+    
+    if (myAssignments.length > 0) {
+        document.getElementById('assignmentAlertContent').innerHTML = myAssignments.join('');
+        playNotificationSound();
+        const alertModal = new bootstrap.Modal(document.getElementById('assignmentAlertModal'));
+        alertModal.show();
+    }
 }
 
 function updateDatalist() {
@@ -864,7 +977,7 @@ function normalizeDateStr(dStr) {
   return dStr;
 }
 
-// 본인 이름 하이라이트 헬퍼 함수
+// 화면용 하이라이트 함수 (본인 이름에 예쁜 뱃지 적용)
 function highlightName(name) {
   if (!name) return '';
   if (currentUserRole === 'USER' && currentUserName && name.trim() === currentUserName.trim()) {
@@ -939,7 +1052,7 @@ function renderTable() {
       
       let outlineNoClass = isSuspendedOutline ? 'text-danger fw-bold' : 'outline-text';
       
-      // 마이크 담당자 2명 하이라이트 배열 처리
+      // 마이크 담당자 하이라이트 배열 처리
       let micArr = [];
       if(item.mic1) micArr.push(highlightName(item.mic1));
       if(item.mic2) micArr.push(highlightName(item.mic2));
