@@ -252,7 +252,7 @@
       <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-semibold"><i class="bi bi-gear-fill me-2"></i>사용자 및 담당자 관리</h5>
         <div>
-          <!-- 기존 데이터 복구 버튼 완벽히 삭제 됨 -->
+          <!-- 복구 버튼 완전 제거됨 -->
           <button class="btn btn-sm btn-light fw-bold" onclick="switchView('talkListView')"><i class="bi bi-arrow-return-left me-1"></i>돌아가기</button>
         </div>
       </div>
@@ -471,7 +471,7 @@ const defaultOutlineTitles = {
   46: "끝까지 확신을 굳게 유지하십시오", 47: "”좋은 소식을 믿으십시오”", 48: "그리스도인들의 충성—시험받고 있다", 49: "이 땅이 과연 다시 깨끗해질 수 있는가?", 50: "지혜로운 결정—어떻게 내릴 수 있는가?", 
   51: "진리가 당신의 생활을 변화시키고 있는가?", 52: "당신의 하느님은 누구인가?", 53: "당신의 생각은 하느님의 생각과 일치한가?", 54: "하느님과 그분의 약속에 대한 믿음을 길러 나가십시오", 55: "하느님 앞에서 어떻게 좋은 이름을 얻을 수 있는가?", 
   56: "우리가 신뢰할 수 있는 지도자는 누구인가?", 57: "박해를 견디는 일", 58: "누가 그리스도의 참제자인가?", 60: "당신의 삶의 목적은 무엇인가?", 
-  61: "당신은 누구의 약속을 신뢰하는가?", 62: "어디에서 진정한 희망을 발견할 수 있는가?", 63: "진리를 찾을 수 있습니까?", 64: "당신은 ‘쾌락을 사랑하는 사람’이 될 것인가, ‘하느님을 사랑하는 파람’이 될 것인가?", 65: "분노가 가득한 세상에서 평화를 이루는 방법", 
+  61: "당신은 누구의 약속을 신뢰하는가?", 62: "어디에서 진정한 희망을 발견할 수 있는가?", 63: "진리를 찾을 수 있습니까?", 64: "당신은 ‘쾌락을 사랑하는 사람’이 될 것인가, ‘하느님을 사랑하는 사람’이 될 것인가?", 65: "분노가 가득한 세상에서 평화를 이루는 방법", 
   66: "당신은 수확하는 일에 참여할 것인가?", 67: "여호와의 말씀과 그분의 창조물에 대해 묵상하십시오", 68: "“계속 ··· 서로 기꺼이 용서하십시오”", 69: "왜 자기희생적인 사랑을 나타내야 하는가?", 70: "왜 하느님을 신뢰해야 하는가?", 
   71: "“깨어 있으십시오”—왜 그리고 어떻게?", 72: "사랑—참그리스도인 회중을 알아볼 수 있는 표", 73: "“지혜의 마음”을 얻으십시오", 74: "여호와께서는 우리를 살펴보고 계신다", 75: "개인 생활에서 여호와의 통치권을 지지하십시오", 
   76: "오늘날의 문제들에 대처하는 데 성서 원칙이 도움이 되는가?", 77: "“후대에 힘쓰십시오\"", 78: "기쁜 마음으로 여호와를 섬기십시오", 79: "당신은 하느님의 친구가 될 것인가, 세상의 친구가 될 것인가?", 80: "과학과 성경—당신은 어느 쪽에 희망을 두는가?", 
@@ -865,13 +865,13 @@ function normalizeDateStr(dStr) {
 }
 
 // 본인 이름 하이라이트 헬퍼 함수
-const highlightName = (name) => {
+function highlightName(name) {
   if (!name) return '';
-  if (currentUserRole === 'USER' && currentUserName && name === currentUserName) {
-    return `<span class="badge bg-warning text-dark fw-bold px-2 shadow-sm rounded-pill" style="font-size: 0.9rem; padding-top: 0.35rem; padding-bottom: 0.35rem;">${name}</span>`;
+  if (currentUserRole === 'USER' && currentUserName && name.trim() === currentUserName.trim()) {
+    return `<span class="badge bg-warning text-dark fw-bold px-2 shadow-sm rounded-pill" style="font-size: 0.9rem; padding: 0.25rem 0.5rem;">${name}</span>`;
   }
   return `<span>${name}</span>`;
-};
+}
 
 function renderTable() {
   const tbody = document.getElementById('lectureTableBody');
@@ -939,7 +939,10 @@ function renderTable() {
       
       let outlineNoClass = isSuspendedOutline ? 'text-danger fw-bold' : 'outline-text';
       
-      let micArr = [item.mic1 ? highlightName(item.mic1) : '', item.mic2 ? highlightName(item.mic2) : ''].filter(Boolean);
+      // 마이크 담당자 2명 하이라이트 배열 처리
+      let micArr = [];
+      if(item.mic1) micArr.push(highlightName(item.mic1));
+      if(item.mic2) micArr.push(highlightName(item.mic2));
       let micHTML = micArr.length > 0 ? micArr.join('<br>') : '<span class="text-muted">-</span>';
 
       let manageCellHTML = '';
@@ -1133,7 +1136,7 @@ function deleteLecture(index) {
   }
 }
 
-// === 내보내기 기능 (출력용은 하이라이트 없이 원래 텍스트로 렌더링됨) ===
+// === 내보내기 기능 (출력용은 노란색 뱃지 없이 원래 원본 텍스트로 깔끔하게 렌더링 됨) ===
 function exportToPDF() {
   let html = '';
   let chunks = [];
