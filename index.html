@@ -161,12 +161,15 @@
         <label class="form-label fw-semibold text-secondary" style="font-size: 0.85rem;">비밀번호</label>
         <input type="password" id="loginPw" class="form-control form-control-lg login-input fs-6" placeholder="비밀번호를 입력하세요" onkeypress="handleEnter(event)">
       </div>
+      
+      <!-- 자동 로그인 체크박스 -->
       <div class="form-check mb-4 text-start ms-1">
         <input class="form-check-input shadow-sm" type="checkbox" id="autoLoginCheck" style="cursor: pointer;">
         <label class="form-check-label text-secondary fw-semibold" for="autoLoginCheck" style="font-size: 0.85rem; cursor: pointer;">
           자동 로그인
         </label>
       </div>
+
       <button class="btn btn-theme btn-lg w-100 fw-bold" style="border-radius: 8px;" onclick="doLogin()">로그인</button>
     </div>
   </div>
@@ -203,7 +206,7 @@
     <!-- 공개 강연 일정 목록 뷰 -->
     <div id="talkListView" class="card shadow-sm border-0 mb-4">
       <div class="card-header card-header-custom py-3 d-flex justify-content-between align-items-center">
-        <!-- 봉사 연도 선택 드롭다운 결합 -->
+        <!-- 봉사 연도 선택 드롭다운 -->
         <div class="d-flex align-items-center gap-2">
             <h5 class="mb-0 fw-semibold"><i class="bi bi-table me-2"></i>공개 강연 계획표</h5>
             <select id="serviceYearSelect" class="form-select form-select-sm shadow-sm border-0 fw-bold ms-2" style="width: auto; border-radius: 6px; cursor: pointer; background-color: rgba(255,255,255,0.9); color: var(--theme-blue);" onchange="changeServiceYear(this.value)">
@@ -250,7 +253,7 @@
       </div>
     </div>
 
-    <!-- 사용자 관리 및 형제 명단 관리 뷰 -->
+    <!-- 사용자 관리 뷰 -->
     <div id="userManageView" class="card shadow-sm border-0" style="display: none;">
       <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-semibold"><i class="bi bi-gear-fill me-2"></i>사용자 및 담당자 관리</h5>
@@ -418,6 +421,7 @@
   </div>
 </div>
 
+<!-- 내 일정 알림 모달창 -->
 <div class="modal fade" id="assignmentAlertModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-sm">
     <div class="modal-content border-0 shadow">
@@ -431,6 +435,7 @@
   </div>
 </div>
 
+<!-- 인쇄용 오버레이 화면 -->
 <div id="printOverlay">
   <div id="printControlsBar" class="print-controls sticky-top bg-dark text-white p-3 d-flex justify-content-between align-items-center shadow-sm">
     <h6 class="mb-0 fw-bold"><i class="bi bi-printer me-2"></i>인쇄 미리보기 (A4 세로)</h6>
@@ -584,7 +589,7 @@ function populateYearSelect() {
     for (let y = defaultYear - 2; y <= defaultYear + 1; y++) {
         const option = document.createElement('option');
         option.value = y;
-        let label = `${y} -${y+1}년도`;
+        let label = `${y} - ${y+1}년도`;
         if (y === defaultYear) label += " (현재)";
         option.text = label;
         if (y === currentServiceYear) option.selected = true;
@@ -925,7 +930,8 @@ function openOutlineModal() {
         </div>
         ${actionBtns}
       </li>
-    });
+    `;
+  });
   outlineListModal.show();
 }
 
@@ -1238,7 +1244,7 @@ function checkRecentUsage() {
   const targetDateStr = document.getElementById('inputDate').value.trim();
   if (!num) { warningEl.style.display = 'none'; return; }
 
-  let baseDate = targetDateStr ? parseToDateObj(targetDateStr) : new Date();
+  let baseDate = parseToDateObj(targetDateStr);
   if (!baseDate) baseDate = new Date();
 
   let mostRecentDateObj = null;
@@ -1347,7 +1353,6 @@ function deleteLecture(index) {
   }
 }
 
-// === 내보내기 기능 ===
 function exportToPDF() {
   let html = '';
   let chunks = [];
