@@ -102,7 +102,7 @@
     }
 
     /* =========================================
-       스마트폰 가로 모드(Landscape) 전용 최적화 
+       [스마트폰 가로 모드(Landscape) 전용 최적화]
        ========================================= */
     @media screen and (max-width: 950px) and (orientation: landscape) {
       .py-4 { padding-top: 0.3rem !important; padding-bottom: 0.3rem !important; }
@@ -115,11 +115,27 @@
       
       .table-scroll-container { max-height: 75vh !important; }
       
-      .schedule-table { min-width: 750px !important; font-size: 0.75rem !important; line-height: 1.1; }
-      .schedule-table th, .schedule-table td { padding: 0.15rem 0.1rem !important; }
-      .schedule-table .title-col { font-size: 0.85rem !important; }
+      /* 표의 전체 너비를 콘텐츠에 맞게 자유롭게 확장시킴 */
+      .schedule-table { 
+          min-width: 100% !important; 
+          width: max-content !important; 
+          font-size: 0.8rem !important; 
+          line-height: 1.1; 
+      }
       
-      .schedule-table .badge { font-size: 0.7rem !important; padding: 0.15rem 0.3rem !important; }
+      /* 모든 칸 강제 한줄 표시 및 가장 타이트한 너비(1%)로 밀착 */
+      .schedule-table th, .schedule-table td { 
+          padding: 0.3rem 0.4rem !important; 
+          white-space: nowrap !important; /* 글자 줄바꿈 방지 */
+          width: 1% !important; /* 브라우저가 최소 너비로 맞추도록 유도 */
+      }
+      
+      /* 오직 '제목' 열(3번째 열)만 너비를 여유롭게 가져가게 설정 */
+      .schedule-table th:nth-child(3), .schedule-table td:nth-child(3) {
+          width: auto !important;
+      }
+      
+      .schedule-table .badge { font-size: 0.75rem !important; padding: 0.15rem 0.3rem !important; }
     }
   </style>
 
@@ -185,6 +201,7 @@
         <input type="password" id="loginPw" class="form-control form-control-lg login-input fs-6" placeholder="비밀번호를 입력하세요" onkeypress="handleEnter(event)">
       </div>
       
+      <!-- 자동 로그인 체크박스 -->
       <div class="form-check mb-4 text-start ms-1">
         <input class="form-check-input shadow-sm" type="checkbox" id="autoLoginCheck" style="cursor: pointer;">
         <label class="form-check-label text-secondary fw-semibold" for="autoLoginCheck" style="font-size: 0.85rem; cursor: pointer;">
@@ -228,7 +245,7 @@
     <!-- 공개 강연 일정 목록 뷰 -->
     <div id="talkListView" class="card shadow-sm border-0 mb-4">
       <div class="card-header card-header-custom py-3 d-flex justify-content-between align-items-center">
-        <!-- 봉사 연도 선택 드롭다운 -->
+        <!-- 봉사 연도 선택 드롭다운 결합 -->
         <div class="d-flex align-items-center gap-2">
             <h5 class="mb-0 fw-semibold"><i class="bi bi-table me-2"></i>공개 강연 계획표</h5>
             <select id="serviceYearSelect" class="form-select form-select-sm shadow-sm border-0 fw-bold ms-2" style="width: auto; border-radius: 6px; cursor: pointer; background-color: rgba(255,255,255,0.9); color: var(--theme-blue);" onchange="changeServiceYear(this.value)">
@@ -252,6 +269,7 @@
         </div>
       </div>
       <div class="table-responsive table-scroll-container">
+        <!-- 표에 schedule-table 클래스 유지 -->
         <table class="table table-hover table-bordered align-middle mb-0 text-center schedule-table">
           <thead class="bg-white">
             <tr>
@@ -538,7 +556,7 @@ const defaultOutlineTitles = {
   161: "예수께서는 왜 고난을 겪고 죽으셨는가?", 162: "어둠의 세상으로부터의 구출", 163: "왜 참하느님을 두려워해야 하는가?", 164: "하느님은 지금도 통제력을 행사하시는가?", 165: "당신은 누구의 가치관을 소중히 여기는가?", 
   166: "진정한 믿음이란 무엇이며 어떻게 나타낼 수 있는가?", 167: "무분별한 세상에서 지혜롭게 행동하라", 168: "이 혼란스러운 세상에서도 안전을 느낄 수 있다!", 169: "왜 성서의 인도를 받아야 하는가?", 170: "누가 인류를 통치할 자격이 있는가?", 
   171: "당신도 지금부터 영원히 평화로운 삶을 누릴 수 있다!", 172: "우리는 하느님 앞에서 어떤 신분을 가지고 있는가?", 173: "하느님의 관점에서 참종교가 과연 있는가?", 174: "하느님의 신세계—누가 들어갈 수 있는가?", 175: "성서가 하느님의 말씀이라는 증거는 무엇인가?", 
-  176: "진정한 평화와 안전—언제 있을 거인가?", 177: "고난의 때에 어디에서 도움을 얻을 수 있는가?", 178: "충절의 길로 걸으라", 179: "세상의 환상적인 것을 멀리하고, 왕국의 실제적인 것을 추구하라", 180: "부활 희망이 우리 자신에게 실제적이어야 하는 이유", 
+  176: "진정한 평화와 안전—언제 있을 것인가?", 177: "고난의 때에 어디에서 도움을 얻을 수 있는가?", 178: "충절의 길로 걸으라", 179: "세상의 환상적인 것을 멀리하고, 왕국의 실제적인 것을 추구하라", 180: "부활 희망이 우리 자신에게 실제적이어야 하는 이유", 
   181: "끝은 우리가 생각하는 것보다 가까운가?", 182: "하느님의 왕국이 지금 우리를 위해 하고 있는 일", 183: "무가치한 것들을 보지 말고 물리치십시오!", 184: "죽으면 모든 것이 끝나는가?", 185: "진리가 우리의 생활에 영향을 미치는가?", 
   186: "하느님의 행복한 백성과 연합하십시오", 187: "사랑의 하느님께서 왜 악을 허용하시는가?", 188: "당신은 여호와께 확신을 두고 있는가?", 189: "하느님과 함께 걸으면 지금부터 영원히 축복을 받는다", 190: "하느님께서 약속하신 완전하고 행복한 가정", 
   191: "사랑과 믿음이 세상을 이기는 방법", 192: "당신은 영원한 생명에 이르는 길을 걷고 있는가?", 193: "세계적 고난의 때에 있을 구출", 194: "경건한 지혜는 우리에게 어떻게 유익을 주는가?"
@@ -571,7 +589,7 @@ function formatDateToISO(dateObj) {
   return `${y}-${m}-${d}`;
 }
 
-// [기본 표시용] MM월 DD일 
+// 화면 및 인쇄물에 출력되는 날짜 형태를 'MM월 DD일' 포맷으로 표시
 function formatDisplayDate(dateStr) {
   const d = parseToDateObj(dateStr);
   if (!d) return dateStr;
@@ -580,7 +598,7 @@ function formatDisplayDate(dateStr) {
   return `${mm}월 ${dd}일`;
 }
 
-// [검색 화면 전용] YY년 MM월 DD일
+// 검색 화면 전용 날짜 포맷 (YY년 MM월 DD일)
 function formatSearchDisplayDate(dateStr) {
   const d = parseToDateObj(dateStr);
   if (!d) return dateStr;
@@ -783,6 +801,7 @@ function doLogin() {
   const loadingScreen = document.getElementById('loadingScreen');
   loadingScreen.style.display = 'flex';
   
+  // PC 접속 시에는 1초만 보여줌
   const loadingDelay = isMobile ? 2000 : 1000;
   
   setTimeout(() => {
@@ -853,7 +872,6 @@ function applyRoleUI() {
       manageHeader.style.display = 'table-cell';
   } else {
       topHeaderArea.style.display = 'none';
-      // [요청 반영] 일반 사용자는 내보내기 버튼 삭제
       topToolbar.innerHTML = `
         <button class="btn btn-dark fw-semibold px-3" onclick="doLogout()"><i class="bi bi-box-arrow-right me-1"></i>로그아웃</button>
       `;
@@ -1123,7 +1141,7 @@ function renderTable() {
   const search = document.getElementById('searchInput').value.trim().toLowerCase();
   
   const isNumericSearch = /^\d+$/.test(search);
-  const isSearching = search !== ''; // 검색 중인지 확인하는 변수 추가
+  const isSearching = search !== ''; 
 
   displayList = [];
   
@@ -1183,7 +1201,7 @@ function renderTable() {
 
   displayList.forEach(item => {
       const isPlaceholder = item.originalIndex === -1;
-      const isSpecial = !isPlaceholder && !item.speaker && item.title;
+      const isSpecial = !isPlaceholder && !item.outlineNo && item.title;
       
       const tr = document.createElement('tr');
       if (isSpecial) tr.className = 'special-event';
@@ -1228,7 +1246,6 @@ function renderTable() {
         }
       }
 
-      // [요청 반영] 검색 중일 때만 연도 포함(formatSearchDisplayDate), 그 외엔 제외(formatDisplayDate)
       let displayD = isSearching ? formatSearchDisplayDate(item.date) : formatDisplayDate(item.date);
       
       let dateClass = isPlaceholder ? 'text-black-50' : 'text-secondary';
@@ -1327,7 +1344,6 @@ function checkRecentUsage() {
   }
 
   if (mostRecentDateObj) {
-    // 경고 문구에도 연도 포함 형식 유지
     warningEl.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i>최근 1년 이내 (${formatSearchDisplayDate(mostRecentDateStr)})에 사용된 연설 입니다.`;
     warningEl.style.display = 'block';
   } else {
@@ -1414,7 +1430,6 @@ function deleteLecture(index) {
   }
 }
 
-// 내보내기 문서: 연도 없이 표시되도록 명확히 분리
 function exportToPDF() {
   let html = '';
   let chunks = [];
