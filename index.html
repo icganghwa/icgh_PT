@@ -74,17 +74,12 @@
       color: #000; font-family: 'Malgun Gothic', sans-serif;
     }
     
-    /* 제목 아래 여백을 대폭 늘려서 답답함 해소 */
     #printContent h2 { text-align: center; margin-bottom: 25px; font-size: 16pt; font-weight: bold; color: #333; }
     #printContent .subtitle { text-align: right; margin-bottom: 6px; font-size: 10pt; font-weight: bold; color: #555; }
-    
-    /* 표 안의 전반적인 글씨 크기 확대 (8.5pt -> 9.5pt) */
     #printContent table { width: 100%; border-collapse: collapse; font-size: 9.5pt; table-layout: fixed; line-height: 1.15; margin-top: 0px; margin-bottom: 20px; } 
     #printContent th, #printContent td { border: 1px solid #000; padding: 2px 1px; text-align: center; vertical-align: middle; word-break: keep-all; box-sizing: border-box; } 
     #printContent th { background-color: #ffffff !important; font-weight: bold; font-size: 9.5pt; padding: 4px 1px; height: 36px !important; }
     #printContent tr { height: 36px !important; page-break-inside: avoid; } 
-    
-    /* 각 열별 세부 글씨 크기 확대 */
     #printContent .date-col { font-size: 8.5pt; white-space: nowrap; }
     #printContent .title-col { text-align: center; font-weight: normal; font-size: 10.5pt; letter-spacing: -0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     #printContent .special-bold { font-weight: bold !important; color: #000 !important; }
@@ -121,7 +116,6 @@
         ctx.roundRect(0, 0, 512, 512, 115);
         ctx.fill();
 
-        // 메인 글자 '강연' (위치 고정)
         ctx.fillStyle = '#ffffff';
         ctx.font = '500 190px "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
         ctx.textAlign = 'center';
@@ -131,7 +125,6 @@
         ctx.shadowOffsetY = 2;
         ctx.fillText('강연', 256, 225);
         
-        // 하단 영문 'GANGHWA' (크기 유지, 위치를 살짝 위로 395 -> 375 변경)
         ctx.font = 'normal 85px "Apple SD Gothic Neo", "Segoe UI", sans-serif';
         ctx.letterSpacing = '1px';
         ctx.fillText('GANGHWA', 256, 375); 
@@ -173,16 +166,14 @@
   </div>
 </div>
 
-<!-- 2. 로그인 완료 후 표시되는 기기 맞춤형 로딩 화면 -->
+<!-- 2. 기기 맞춤형 로딩 화면 -->
 <div id="loadingScreen" class="justify-content-center align-items-center" style="display: none;">
   <div class="card shadow-lg border-0" style="width: 100%; max-width: 360px; border-radius: 16px; overflow: hidden;">
     <div class="text-center text-white py-5 px-4" style="background-color: var(--theme-blue);">
-      <!-- 스마트폰용 안내 문구 -->
       <div id="loadingMobile" style="display: none;">
         <i class="bi bi-phone-landscape fs-1 mb-3 d-block"></i>
         <h5 class="fw-bold mb-2 lh-base" style="word-break: keep-all; font-size: 1.1rem;">이 프로그램은 스마트폰의<br>가로 모드에 최적화 되어 있습니다.</h5>
       </div>
-      <!-- PC용 안내 문구 -->
       <div id="loadingPC" style="display: none;">
         <i class="bi bi-display fs-1 mb-3 d-block"></i>
         <h5 class="fw-bold mb-2 lh-base" style="word-break: keep-all; font-size: 1.1rem;">환영합니다.<br>시스템에 접속 중입니다...</h5>
@@ -252,7 +243,6 @@
       <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-semibold"><i class="bi bi-gear-fill me-2"></i>사용자 및 담당자 관리</h5>
         <div>
-          <!-- 복구 버튼 완전 제거됨 -->
           <button class="btn btn-sm btn-light fw-bold" onclick="switchView('talkListView')"><i class="bi bi-arrow-return-left me-1"></i>돌아가기</button>
         </div>
       </div>
@@ -416,19 +406,16 @@
 </div>
 
 <!-- ==============================================
-     [신규] 내 일정 알림 모달창 (로그인 시 자동 팝업)
+     [신규] 내 일정 알림 모달창 (제목 삭제, 가운데 정렬 완료)
      ============================================== -->
 <div class="modal fade" id="assignmentAlertModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-sm">
     <div class="modal-content border-0 shadow">
-      <div class="modal-header bg-warning text-dark border-0">
-        <h6 class="modal-title fw-bold"><i class="bi bi-bell-fill me-2"></i>다가오는 일정 알림</h6>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body text-center p-4">
+      <!-- 모달 제목(Header) 부분을 완전히 삭제했습니다 -->
+      <div class="modal-body text-center p-4 pb-3">
         <div id="assignmentAlertContent" class="mb-0"></div>
       </div>
-      <div class="modal-footer border-0 justify-content-center pt-0">
+      <div class="modal-footer border-0 justify-content-center pt-0 pb-4">
         <button type="button" class="btn btn-dark px-4 rounded-pill fw-bold" data-bs-dismiss="modal">확인했습니다</button>
       </div>
     </div>
@@ -601,7 +588,7 @@ function playNotificationSound() {
       const gainNode = audioCtx.createGain();
       
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(600, audioCtx.currentTime); // 맑고 부드러운 톤
+      osc.frequency.setValueAtTime(600, audioCtx.currentTime); 
       osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1); 
       
       gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
@@ -664,7 +651,7 @@ function doLogin() {
 
     // 일반 사용자일 경우 이번 주, 다음 주 일정 체크하여 알림 띄우기
     if (currentUserRole === 'USER') {
-        checkUpcomingAssignments();
+        checkUpcomingAssignments(isMobile);
     }
   }, 2000);
 }
@@ -718,7 +705,7 @@ function applyRoleUI() {
   renderTable();
 }
 
-function checkUpcomingAssignments() {
+function checkUpcomingAssignments(isMobile) {
     if (!currentUserName) return;
     
     const today = new Date();
@@ -747,10 +734,10 @@ function checkUpcomingAssignments() {
             if (roles.length > 0) {
                 let weekLabel = (d.getTime() === thisSunday.getTime()) ? '이번 주' : '다음 주';
                 myAssignments.push(`
-                    <div class="mb-3 p-3 bg-light rounded-3 text-start border border-warning shadow-sm">
+                    <div class="mb-3 p-3 bg-light rounded-3 text-center border border-warning shadow-sm">
                         <span class="badge bg-warning text-dark mb-2 fs-6 py-2 px-3 shadow-sm rounded-pill">${weekLabel} (${l.date})</span><br>
-                        <span class="fw-bold text-dark" style="font-size: 1.1rem;">${currentUserName}</span> 형제님은<br>
-                        <span class="fw-bold" style="font-size: 1.15rem; color: var(--theme-blue);">『${roles.join(', ')}』</span> 담당이십니다.
+                        <span class="fw-bold text-dark" style="font-size: 1.1rem;">${currentUserName}</span> 형제는<br>
+                        <span class="fw-bold" style="font-size: 1.15rem; color: var(--theme-blue);">『${roles.join(', ')}』</span>에 임명되어 있습니다.
                     </div>
                 `);
             }
@@ -759,7 +746,12 @@ function checkUpcomingAssignments() {
     
     if (myAssignments.length > 0) {
         document.getElementById('assignmentAlertContent').innerHTML = myAssignments.join('');
-        playNotificationSound();
+        
+        // 모바일 접속 시에만 소리 알림 재생
+        if (isMobile) {
+            playNotificationSound();
+        }
+        
         const alertModal = new bootstrap.Modal(document.getElementById('assignmentAlertModal'));
         alertModal.show();
     }
@@ -977,10 +969,23 @@ function normalizeDateStr(dStr) {
   return dStr;
 }
 
-// 화면용 하이라이트 함수 (본인 이름에 예쁜 뱃지 적용)
-function highlightName(name) {
+// 화면용 하이라이트 함수 (과거 일정은 제외하고 미래/오늘 일정만 뱃지 적용)
+function highlightName(name, dateStr) {
   if (!name) return '';
-  if (currentUserRole === 'USER' && currentUserName && name.trim() === currentUserName.trim()) {
+  
+  let isFutureOrToday = true; 
+  if (dateStr) {
+    const d = parseToDateObj(dateStr);
+    if (d) {
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      if (d.getTime() < today.getTime()) {
+        isFutureOrToday = false; 
+      }
+    }
+  }
+
+  if (isFutureOrToday && currentUserRole === 'USER' && currentUserName && name.trim() === currentUserName.trim()) {
     return `<span class="badge bg-warning text-dark fw-bold px-2 shadow-sm rounded-pill" style="font-size: 0.9rem; padding: 0.25rem 0.5rem;">${name}</span>`;
   }
   return `<span>${name}</span>`;
@@ -1052,10 +1057,9 @@ function renderTable() {
       
       let outlineNoClass = isSuspendedOutline ? 'text-danger fw-bold' : 'outline-text';
       
-      // 마이크 담당자 하이라이트 배열 처리
       let micArr = [];
-      if(item.mic1) micArr.push(highlightName(item.mic1));
-      if(item.mic2) micArr.push(highlightName(item.mic2));
+      if(item.mic1) micArr.push(highlightName(item.mic1, item.date));
+      if(item.mic2) micArr.push(highlightName(item.mic2, item.date));
       let micHTML = micArr.length > 0 ? micArr.join('<br>') : '<span class="text-muted">-</span>';
 
       let manageCellHTML = '';
@@ -1084,11 +1088,11 @@ function renderTable() {
         <td class="${isPlaceholder ? 'text-black-50' : 'text-secondary'} text-nowrap">${item.date || '-'}</td>
         <td>${item.outlineNo ? `<span class="${outlineNoClass}">${item.outlineNo}</span>` : `<span class="text-muted">-</span>`}</td>
         <td class="text-center ${titleClass}">${titleHTML}</td>
-        <td>${item.speaker ? highlightName(item.speaker) : `<span class="text-muted">-</span>`}</td>
+        <td>${item.speaker ? highlightName(item.speaker, item.date) : `<span class="text-muted">-</span>`}</td>
         <td>${item.congregation || '<span class="text-muted">-</span>'}</td>
-        <td>${item.chairman ? highlightName(item.chairman) : `<span class="text-muted">-</span>`}</td>
-        <td>${item.reader ? highlightName(item.reader) : `<span class="text-muted">-</span>`}</td>
-        <td>${item.prayer ? highlightName(item.prayer) : `<span class="text-muted">-</span>`}</td>
+        <td>${item.chairman ? highlightName(item.chairman, item.date) : `<span class="text-muted">-</span>`}</td>
+        <td>${item.reader ? highlightName(item.reader, item.date) : `<span class="text-muted">-</span>`}</td>
+        <td>${item.prayer ? highlightName(item.prayer, item.date) : `<span class="text-muted">-</span>`}</td>
         <td class="lh-sm">${micHTML}</td>
         ${manageCellHTML}
       `;
@@ -1249,7 +1253,7 @@ function deleteLecture(index) {
   }
 }
 
-// === 내보내기 기능 (출력용은 노란색 뱃지 없이 원래 원본 텍스트로 깔끔하게 렌더링 됨) ===
+// === 내보내기 기능 (출력용 문서는 하이라이트 없이 원래 텍스트로 깔끔하게 렌더링) ===
 function exportToPDF() {
   let html = '';
   let chunks = [];
