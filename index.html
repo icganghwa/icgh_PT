@@ -17,7 +17,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   
-  <!-- PDF 생성을 위한 외부 라이브러리 -->
+  <!-- PDF 생성을 위한 외부 라이브러리 (앱 모드 인쇄 우회용) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <style>
@@ -37,6 +37,7 @@
     .outline-text { font-size: 0.85rem; font-weight: 300; color: #475569; }
     .title-no-outline { font-weight: bold; font-style: italic; }
     
+    /* 배경색 전부 제거 (흰색 통일) */
     .special-event td { background-color: #ffffff; }
     .empty-slot td { background-color: #ffffff; color: #94a3b8; }
 
@@ -48,7 +49,7 @@
       vertical-align: middle; 
     }
     
-    .schedule-table { min-width: 1000px; } 
+    .schedule-table { min-width: 1000px; } /* PC 등 기본 표 최소 너비 */
 
     #loginScreen, #loadingScreen { background-color: #f1f5f9; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; display: flex; }
     .login-input { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
@@ -58,6 +59,17 @@
     input[type="number"]::-webkit-outer-spin-button,
     input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     input[type="number"] { -moz-appearance: textfield; }
+
+    /* =========================================
+       [신규] 이번 주 일정 하이라이트 (화면에서만 보임)
+       ========================================= */
+    @media screen {
+      .this-week-row td {
+        background-color: #fffdf0 !important; /* 부드러운 노란빛 배경 */
+        border-top: 2px solid #facc15 !important; /* 진한 노란색 위 테두리 */
+        border-bottom: 2px solid #facc15 !important; /* 진한 노란색 아래 테두리 */
+      }
+    }
 
     /* =========================================
        [인쇄 및 PDF 내보내기 전용 스타일]
@@ -114,7 +126,7 @@
       
       .table-scroll-container { max-height: 75vh !important; }
       
-      /* 표의 전체 너비를 콘텐츠에 맞게 확장 */
+      /* 표의 전체 너비를 콘텐츠에 맞게 자유롭게 확장시킴 */
       .schedule-table { 
           min-width: 100% !important; 
           width: max-content !important; 
@@ -561,12 +573,11 @@ const defaultOutlineTitles = {
   191: "사랑과 믿음이 세상을 이기는 방법", 192: "당신은 영원한 생명에 이르는 길을 걷고 있는가?", 193: "세계적 고난의 때에 있을 구출", 194: "경건한 지혜는 우리에게 어떻게 유익을 주는가?"
 };
 
-// [버그 픽스] 안전한 날짜 파싱 함수
 function parseToDateObj(dateStr) {
   if (!dateStr) return null;
   if (dateStr.includes('-')) {
     const parts = dateStr.split('-');
-    if (parts.length === 3) return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10)-1, parseInt(parts[2], 10));
+    if (parts.length === 3) return new Date(parts[0], parts[1]-1, parts[2]);
   }
   const match = String(dateStr).match(/(\d{1,2})월\s*(\d{1,2})일/);
   if (match) {
@@ -589,7 +600,7 @@ function formatDateToISO(dateObj) {
   return `${y}-${m}-${d}`;
 }
 
-// 기본 화면/인쇄용 날짜 포맷 (MM월 DD일)
+// 화면 및 인쇄물에 출력되는 날짜 형태를 'MM월 DD일' 포맷으로 표시
 function formatDisplayDate(dateStr) {
   const d = parseToDateObj(dateStr);
   if (!d) return dateStr;
@@ -801,7 +812,6 @@ function doLogin() {
   const loadingScreen = document.getElementById('loadingScreen');
   loadingScreen.style.display = 'flex';
   
-  // [요청 반영] PC 접속 시에는 1초만 보여줌
   const loadingDelay = isMobile ? 2000 : 1000;
   
   setTimeout(() => {
@@ -872,7 +882,6 @@ function applyRoleUI() {
       manageHeader.style.display = 'table-cell';
   } else {
       topHeaderArea.style.display = 'none';
-      // [요청 반영] 일반 사용자는 내보내기 버튼 삭제
       topToolbar.innerHTML = `
         <button class="btn btn-dark fw-semibold px-3" onclick="doLogout()"><i class="bi bi-box-arrow-right me-1"></i>로그아웃</button>
       `;
@@ -1146,6 +1155,14 @@ function renderTable() {
   const isNumericSearch = /^\d+$/.test(search);
   const isSearching = search !== ''; 
 
+  // [신규] 이번 주 일요일 계산
+  const todayForHighlight = new Date();
+  todayForHighlight.setHours(0,0,0,0);
+  const daysToSun = todayForHighlight.getDay() === 0 ? 0 : 7 - todayForHighlight.getDay();
+  const thisSundayDate = new Date(todayForHighlight);
+  thisSundayDate.setDate(todayForHighlight.getDate() + daysToSun);
+  const thisSundayISO = formatDateToISO(thisSundayDate);
+
   displayList = [];
   
   if (isSearching) {
@@ -1214,10 +1231,14 @@ function renderTable() {
   displayList.forEach(item => {
       const isPlaceholder = item.originalIndex === -1;
       const isSpecial = !isPlaceholder && !item.outlineNo && item.title;
-      
+      const isThisWeek = (item.date === thisSundayISO); // [신규] 이번 주 여부
+
       const tr = document.createElement('tr');
-      if (isSpecial) tr.className = 'special-event';
-      if (isPlaceholder) tr.className = 'empty-slot border-bottom';
+      let rowClasses = [];
+      if (isSpecial) rowClasses.push('special-event');
+      if (isPlaceholder) rowClasses.push('empty-slot', 'border-bottom');
+      if (isThisWeek) rowClasses.push('this-week-row'); // [신규] 노란색 배경 클래스
+      tr.className = rowClasses.join(' ');
 
       const isSuspendedOutline = item.outlineNo && suspendedOutlines.includes(Number(item.outlineNo));
 
@@ -1260,10 +1281,17 @@ function renderTable() {
 
       let displayD = isSearching ? formatSearchDisplayDate(item.date) : formatDisplayDate(item.date);
       
-      // [요청 반영] 강연 번호가 없으면 날짜를 볼드체로 변경
+      // [신규] 화면에서만 보여지는 '이번 주' 뱃지
+      if (isThisWeek) {
+          displayD = `<span class="badge bg-danger rounded-pill shadow-sm mb-1 d-print-none" style="font-size: 0.65rem;">이번 주</span><br>${displayD}`;
+      }
+      
       let dateClass = isPlaceholder ? 'text-black-50' : 'text-secondary';
       if (isSpecial) { 
           dateClass = 'text-dark fw-bold'; 
+      }
+      if (isThisWeek) {
+          dateClass += ' fw-bold'; // 이번 주 날짜 볼드 처리
       }
 
       tr.innerHTML = `
@@ -1311,8 +1339,8 @@ function checkIfSunday() {
   const dateStr = document.getElementById('inputDate').value;
   const warningEl = document.getElementById('sundayWarning');
   if (!dateStr) { warningEl.style.display = 'none'; return; }
-  const dateObj = parseToDateObj(dateStr);
-  if (dateObj && dateObj.getDay() !== 0) warningEl.style.display = 'block';
+  const dateObj = new Date(dateStr + "T00:00:00");
+  if (dateObj.getDay() !== 0) warningEl.style.display = 'block';
   else warningEl.style.display = 'none';
 }
 
