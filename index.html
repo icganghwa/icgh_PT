@@ -61,7 +61,7 @@
     input[type="number"] { -moz-appearance: textfield; }
 
     /* =========================================
-       [신규] 이번 주 일정 하이라이트 (화면에서만 보임)
+       이번 주 일정 하이라이트 (화면에서만 보임)
        ========================================= */
     @media screen {
       .this-week-row td {
@@ -882,6 +882,7 @@ function applyRoleUI() {
       manageHeader.style.display = 'table-cell';
   } else {
       topHeaderArea.style.display = 'none';
+      // [요청 반영] 일반 사용자는 내보내기 버튼 삭제
       topToolbar.innerHTML = `
         <button class="btn btn-dark fw-semibold px-3" onclick="doLogout()"><i class="bi bi-box-arrow-right me-1"></i>로그아웃</button>
       `;
@@ -1132,13 +1133,11 @@ function highlightName(name, isoDateStr) {
   
   let isFutureOrToday = true; 
   if (isoDateStr) {
-    const d = parseToDateObj(isoDateStr);
-    if (d) {
-      const today = new Date();
-      today.setHours(0,0,0,0);
-      if (d.getTime() < today.getTime()) {
-        isFutureOrToday = false; 
-      }
+    const d = new Date(isoDateStr + "T00:00:00");
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    if (d.getTime() < today.getTime()) {
+      isFutureOrToday = false; 
     }
   }
 
@@ -1155,7 +1154,6 @@ function renderTable() {
   const isNumericSearch = /^\d+$/.test(search);
   const isSearching = search !== ''; 
 
-  // [신규] 이번 주 일요일 계산
   const todayForHighlight = new Date();
   todayForHighlight.setHours(0,0,0,0);
   const daysToSun = todayForHighlight.getDay() === 0 ? 0 : 7 - todayForHighlight.getDay();
@@ -1231,13 +1229,13 @@ function renderTable() {
   displayList.forEach(item => {
       const isPlaceholder = item.originalIndex === -1;
       const isSpecial = !isPlaceholder && !item.outlineNo && item.title;
-      const isThisWeek = (item.date === thisSundayISO); // [신규] 이번 주 여부
+      const isThisWeek = (item.date === thisSundayISO);
 
       const tr = document.createElement('tr');
       let rowClasses = [];
       if (isSpecial) rowClasses.push('special-event');
       if (isPlaceholder) rowClasses.push('empty-slot', 'border-bottom');
-      if (isThisWeek) rowClasses.push('this-week-row'); // [신규] 노란색 배경 클래스
+      if (isThisWeek) rowClasses.push('this-week-row');
       tr.className = rowClasses.join(' ');
 
       const isSuspendedOutline = item.outlineNo && suspendedOutlines.includes(Number(item.outlineNo));
@@ -1281,17 +1279,12 @@ function renderTable() {
 
       let displayD = isSearching ? formatSearchDisplayDate(item.date) : formatDisplayDate(item.date);
       
-      // [신규] 화면에서만 보여지는 '이번 주' 뱃지
-      if (isThisWeek) {
-          displayD = `<span class="badge bg-danger rounded-pill shadow-sm mb-1 d-print-none" style="font-size: 0.65rem;">이번 주</span><br>${displayD}`;
-      }
-      
       let dateClass = isPlaceholder ? 'text-black-50' : 'text-secondary';
       if (isSpecial) { 
           dateClass = 'text-dark fw-bold'; 
       }
       if (isThisWeek) {
-          dateClass += ' fw-bold'; // 이번 주 날짜 볼드 처리
+          dateClass += ' fw-bold'; 
       }
 
       tr.innerHTML = `
