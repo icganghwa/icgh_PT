@@ -37,6 +37,7 @@
     .outline-text { font-size: 0.85rem; font-weight: 300; color: #475569; }
     .title-no-outline { font-weight: bold; font-style: italic; }
     
+    /* 배경색 전부 제거 (흰색 통일) */
     .special-event td { background-color: #ffffff; }
     .empty-slot td { background-color: #ffffff; color: #94a3b8; }
 
@@ -140,7 +141,6 @@
     }
   </style>
 
-  <!-- 스마트폰 아이콘 동적 생성 스크립트 -->
   <script>
     document.addEventListener("DOMContentLoaded", function() {
         const canvas = document.createElement('canvas');
@@ -214,7 +214,7 @@
   </div>
 </div>
 
-<!-- 2. 기기 맞춤형 로딩 화면 -->
+<!-- 2. 로딩 화면 -->
 <div id="loadingScreen" class="justify-content-center align-items-center" style="display: none;">
   <div class="card shadow-lg border-0" style="width: 100%; max-width: 360px; border-radius: 16px; overflow: hidden;">
     <div class="text-center text-white py-5 px-4" style="background-color: var(--theme-blue);">
@@ -236,11 +236,13 @@
 <!-- 3. 메인 애플리케이션 화면 -->
 <div id="mainApp" class="py-4" style="display: none;">
   <div class="container-fluid px-4">
+    <!-- 상단 타이틀 -->
     <div id="topHeaderArea" class="mb-4 pb-2 border-bottom text-center">
       <h2 class="fw-bold mb-1" style="color: var(--theme-blue);"><i class="bi bi-calendar-week me-2"></i>공개 강연 일정 관리</h2>
       <p class="text-muted mb-0" style="font-size: 0.85rem;">강연 제목과 초대 연사를 손쉽게 관리하세요.</p>
     </div>
 
+    <!-- 목록 뷰 -->
     <div id="talkListView" class="card shadow-sm border-0 mb-4">
       <div class="card-header card-header-custom py-3 d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center gap-2">
@@ -256,9 +258,9 @@
       <div class="card-body bg-white border-bottom py-3">
         <div class="row g-3 align-items-center">
           <div class="col-md-7 col-lg-7">
-            <!-- [신규 수정] 검색창 (엔터 및 버튼 클릭 시 동작) -->
+            <!-- 검색창 (버튼/엔터 클릭 시에만 작동) -->
             <div class="input-group">
-              <input type="text" id="searchInput" class="form-control ps-3 border-secondary" placeholder="연설 번호, 연사, 제목 등 검색 (단어는 2글자 이상)" onkeypress="if(event.key === 'Enter') executeSearch()">
+              <input type="text" id="searchInput" class="form-control ps-3 border-secondary" placeholder="연설 번호, 연사명 검색 (단어는 2글자 이상)" onkeypress="if(event.key === 'Enter') executeSearch()">
               <button class="btn btn-secondary px-3" type="button" onclick="executeSearch()"><i class="bi bi-search"></i> 검색</button>
               <button class="btn btn-outline-secondary px-3" type="button" onclick="clearSearch()" title="검색 초기화"><i class="bi bi-x-lg"></i></button>
             </div>
@@ -291,7 +293,7 @@
       </div>
     </div>
 
-    <!-- 사용자 관리 및 형제 명단 관리 뷰 -->
+    <!-- 사용자 관리 뷰 -->
     <div id="userManageView" class="card shadow-sm border-0" style="display: none;">
       <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-semibold"><i class="bi bi-gear-fill me-2"></i>사용자 및 담당자 관리</h5>
@@ -498,7 +500,11 @@ const firebaseConfig = {
   appId: "APP_ID_위치"
 };
 
-firebase.initializeApp(firebaseConfig);
+try {
+  firebase.initializeApp(firebaseConfig);
+} catch (e) {
+  console.error("Firebase 초기화 에러:", e);
+}
 const database = firebase.database();
 
 let currentUserRole = null; 
@@ -561,13 +567,15 @@ const defaultOutlineTitles = {
   191: "사랑과 믿음이 세상을 이기는 방법", 192: "당신은 영원한 생명에 이르는 길을 걷고 있는가?", 193: "세계적 고난의 때에 있을 구출", 194: "경건한 지혜는 우리에게 어떻게 유익을 주는가?"
 };
 
+// 날짜 변환 함수 안전성 강화 (에러 방지)
 function parseToDateObj(dateStr) {
   if (!dateStr) return null;
-  if (dateStr.includes('-')) {
-    const parts = dateStr.split('-');
-    if (parts.length === 3) return new Date(parts[0], parts[1]-1, parts[2]);
+  const str = String(dateStr).trim();
+  if (str.includes('-')) {
+    const parts = str.split('-');
+    if (parts.length === 3) return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10)-1, parseInt(parts[2], 10));
   }
-  const match = String(dateStr).match(/(\d{1,2})월\s*(\d{1,2})일/);
+  const match = str.match(/(\d{1,2})월\s*(\d{1,2})일/);
   if (match) {
     const m = parseInt(match[1], 10) - 1;
     const d = parseInt(match[2], 10);
@@ -588,7 +596,7 @@ function formatDateToISO(dateObj) {
   return `${y}-${m}-${d}`;
 }
 
-// 기본 화면/인쇄용 날짜 포맷 (MM월 DD일)
+// 화면/인쇄용 날짜 포맷 (MM월 DD일)
 function formatDisplayDate(dateStr) {
   const d = parseToDateObj(dateStr);
   if (!d) return dateStr;
@@ -597,7 +605,7 @@ function formatDisplayDate(dateStr) {
   return `${mm}월 ${dd}일`;
 }
 
-// 검색 전용 날짜 포맷 (YY년 MM월 DD일)
+// 검색용 포맷 (YY년 MM월 DD일)
 function formatSearchDisplayDate(dateStr) {
   const d = parseToDateObj(dateStr);
   if (!d) return dateStr;
@@ -646,51 +654,52 @@ function populateYearSelect() {
 
 function changeServiceYear(year) {
     currentServiceYear = parseInt(year);
-    document.getElementById('searchInput').value = ''; // 연도 변경 시 검색어 초기화
+    document.getElementById('searchInput').value = '';
     renderTable();
 }
 
 database.ref('public_talks_app').on('value', (snapshot) => {
-  const data = snapshot.val();
-  
-  let needSave = false;
-  if (data) {
-    lectures = data.lectures || [];
-    outlineTitles = data.outlineTitles || defaultOutlineTitles;
-    suspendedOutlines = data.suspendedOutlines || [];
-    allowedUsers = data.allowedUsers || [];
-    brotherNames = data.brotherNames || defaultBrotherNames;
+  try {
+    const data = snapshot.val();
+    let needSave = false;
+    if (data) {
+      lectures = data.lectures || [];
+      outlineTitles = data.outlineTitles || defaultOutlineTitles;
+      suspendedOutlines = data.suspendedOutlines || [];
+      allowedUsers = data.allowedUsers || [];
+      brotherNames = data.brotherNames || defaultBrotherNames;
+      
+      lectures.forEach(l => {
+          if (l.date && !String(l.date).includes('-')) {
+               const dObj = parseToDateObj(l.date);
+               if (dObj) { 
+                  l.date = formatDateToISO(dObj); 
+                  needSave = true; 
+               }
+          }
+      });
+    } else {
+      lectures = [];
+      outlineTitles = JSON.parse(JSON.stringify(defaultOutlineTitles));
+      brotherNames = [...defaultBrotherNames];
+      needSave = true;
+    }
     
-    lectures.forEach(l => {
-        if (l.date && !l.date.includes('-')) {
-             const dObj = parseToDateObj(l.date);
-             if (dObj) { 
-                l.date = formatDateToISO(dObj); 
-                needSave = true; 
-             }
-        }
-    });
-  } else {
-    lectures = [];
-    outlineTitles = JSON.parse(JSON.stringify(defaultOutlineTitles));
-    brotherNames = [...defaultBrotherNames];
-    needSave = true;
-  }
-  
-  if (needSave) {
-      saveToFirebase();
-  }
-  
-  updateDatalist(); 
-  
-  if (currentUserRole) {
-    if (document.getElementById('talkListView').style.display !== 'none') {
-       renderTable();
+    if (needSave) saveToFirebase();
+    
+    updateDatalist(); 
+    
+    if (currentUserRole) {
+      if (document.getElementById('talkListView').style.display !== 'none') {
+         renderTable();
+      }
+      if (document.getElementById('userManageView').style.display !== 'none') {
+         renderUserManage();
+         renderBrotherManage();
+      }
     }
-    if (document.getElementById('userManageView').style.display !== 'none') {
-       renderUserManage();
-       renderBrotherManage();
-    }
+  } catch (e) {
+    console.error("데이터 로드 중 에러 발생:", e);
   }
 });
 
@@ -710,22 +719,26 @@ document.addEventListener("DOMContentLoaded", () => {
   resetModal = new bootstrap.Modal(document.getElementById('resetModal'));
   outlineListModal = new bootstrap.Modal(document.getElementById('outlineListModal'));
   
-  const savedRole = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
-  const savedName = localStorage.getItem('userName') || sessionStorage.getItem('userName');
-  
-  if(savedRole && savedName) {
-      currentUserRole = savedRole;
-      currentUserName = savedName;
-      
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('mainApp').style.display = 'block';
-      
-      applyRoleUI();
-      
-      if (currentUserRole === 'USER') {
-          const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-          setTimeout(() => { checkUpcomingAssignments(isMobile); }, 500);
-      }
+  try {
+    const savedRole = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
+    const savedName = localStorage.getItem('userName') || sessionStorage.getItem('userName');
+    
+    if(savedRole && savedName) {
+        currentUserRole = savedRole;
+        currentUserName = savedName;
+        
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+        
+        applyRoleUI();
+        
+        if (currentUserRole === 'USER') {
+            const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+            setTimeout(() => { checkUpcomingAssignments(isMobile); }, 500);
+        }
+    }
+  } catch(e) {
+    console.error("자동 로그인 처리 에러:", e);
   }
 });
 
@@ -765,66 +778,72 @@ function playNotificationSound() {
 
 function handleEnter(e) { if (e.key === 'Enter' || e.keyCode === 13) { doLogin(); } }
 
+// 로그인 오류 완벽 차단을 위한 예외처리 추가
 function doLogin() {
-  initAudioContext(); 
+  try {
+    initAudioContext(); 
 
-  const id = document.getElementById('loginId').value.trim();
-  const pw = document.getElementById('loginPw').value.trim();
-  const isAutoLogin = document.getElementById('autoLoginCheck').checked; 
+    const id = document.getElementById('loginId').value.trim();
+    const pw = document.getElementById('loginPw').value.trim();
+    const isAutoLogin = document.getElementById('autoLoginCheck').checked; 
 
-  if (id === 'icganghwa' && pw === '191475') {
-      currentUserRole = 'ADMIN';
-      currentUserName = '관리자';
-  } else if (pw === '191435') {
-      if (allowedUsers.includes(id)) {
-          currentUserRole = 'USER';
-          currentUserName = id;
-      } else {
-          alert('등록되지 않은 사용자 이름입니다. 관리자에게 문의하세요.');
-          return;
-      }
-  } else {
-      alert('아이디(이름) 또는 비밀번호가 일치하지 않습니다.');
-      return;
-  }
-
-  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  if (isMobile) {
-      document.getElementById('loadingMobile').style.display = 'block';
-      document.getElementById('loadingPC').style.display = 'none';
-  } else {
-      document.getElementById('loadingMobile').style.display = 'none';
-      document.getElementById('loadingPC').style.display = 'block';
-  }
-
-  document.getElementById('loginScreen').style.display = 'none';
-  const loadingScreen = document.getElementById('loadingScreen');
-  loadingScreen.style.display = 'flex';
-  
-  const loadingDelay = isMobile ? 2000 : 1000;
-  
-  setTimeout(() => {
-    loadingScreen.style.display = 'none';
-    
-    if (isAutoLogin) {
-        localStorage.setItem('userRole', currentUserRole);
-        localStorage.setItem('userName', currentUserName);
-        sessionStorage.removeItem('userRole'); 
-        sessionStorage.removeItem('userName');
+    if (id === 'icganghwa' && pw === '191475') {
+        currentUserRole = 'ADMIN';
+        currentUserName = '관리자';
+    } else if (pw === '191435') {
+        if (allowedUsers.includes(id)) {
+            currentUserRole = 'USER';
+            currentUserName = id;
+        } else {
+            alert('등록되지 않은 사용자 이름입니다. 관리자에게 문의하세요.');
+            return;
+        }
     } else {
-        sessionStorage.setItem('userRole', currentUserRole);
-        sessionStorage.setItem('userName', currentUserName);
-        localStorage.removeItem('userRole'); 
-        localStorage.removeItem('userName');
+        alert('아이디(이름) 또는 비밀번호가 일치하지 않습니다.');
+        return;
     }
-    
-    document.getElementById('mainApp').style.display = 'block';
-    applyRoleUI();
 
-    if (currentUserRole === 'USER') {
-        checkUpcomingAssignments(isMobile);
+    const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isMobile) {
+        document.getElementById('loadingMobile').style.display = 'block';
+        document.getElementById('loadingPC').style.display = 'none';
+    } else {
+        document.getElementById('loadingMobile').style.display = 'none';
+        document.getElementById('loadingPC').style.display = 'block';
     }
-  }, loadingDelay);
+
+    document.getElementById('loginScreen').style.display = 'none';
+    const loadingScreen = document.getElementById('loadingScreen');
+    loadingScreen.style.display = 'flex';
+    
+    const loadingDelay = isMobile ? 2000 : 1000;
+    
+    setTimeout(() => {
+      loadingScreen.style.display = 'none';
+      
+      if (isAutoLogin) {
+          localStorage.setItem('userRole', currentUserRole);
+          localStorage.setItem('userName', currentUserName);
+          sessionStorage.removeItem('userRole'); 
+          sessionStorage.removeItem('userName');
+      } else {
+          sessionStorage.setItem('userRole', currentUserRole);
+          sessionStorage.setItem('userName', currentUserName);
+          localStorage.removeItem('userRole'); 
+          localStorage.removeItem('userName');
+      }
+      
+      document.getElementById('mainApp').style.display = 'block';
+      applyRoleUI();
+
+      if (currentUserRole === 'USER') {
+          checkUpcomingAssignments(isMobile);
+      }
+    }, loadingDelay);
+  } catch (e) {
+    console.error("로그인 함수 에러:", e);
+    alert("오류가 발생했습니다. 브라우저 캐시를 삭제하거나 강력 새로고침을 해주세요.");
+  }
 }
 
 function doLogout() {
@@ -1137,32 +1156,37 @@ function highlightName(name, isoDateStr) {
   return `<span>${name}</span>`;
 }
 
-// [신규] 명시적으로 검색 버튼을 눌러야만 실행되도록 하는 함수
+// [검색 알고리즘 업데이트] 버튼 클릭 또는 엔터 키를 쳐야만 작동
+let isSearchModeActive = false;
+let currentSearchVal = '';
+
 function executeSearch() {
   const searchVal = document.getElementById('searchInput').value.trim();
   if (searchVal !== '') {
       const isNumeric = /^\d+$/.test(searchVal);
-      // 문자가 포함된 경우 2글자 이상 입력 검증
       if (!isNumeric && searchVal.length < 2) {
           alert('단어 검색은 2글자 이상 입력해주세요.');
           return;
       }
+      isSearchModeActive = true;
+      currentSearchVal = searchVal.toLowerCase();
+  } else {
+      isSearchModeActive = false;
+      currentSearchVal = '';
   }
   renderTable(); 
 }
 
-// [신규] 검색어 초기화 (X 버튼)
 function clearSearch() {
   document.getElementById('searchInput').value = '';
+  isSearchModeActive = false;
+  currentSearchVal = '';
   renderTable();
 }
 
 function renderTable() {
   const tbody = document.getElementById('lectureTableBody');
-  const search = document.getElementById('searchInput').value.trim().toLowerCase();
-  
-  const isNumericSearch = /^\d+$/.test(search);
-  const isSearching = search !== ''; 
+  const isNumericSearch = /^\d+$/.test(currentSearchVal);
 
   const todayForHighlight = new Date();
   todayForHighlight.setHours(0,0,0,0);
@@ -1173,13 +1197,22 @@ function renderTable() {
 
   displayList = [];
   
-  if (isSearching) {
+  if (isSearchModeActive) {
     let allLectures = lectures.map((l, idx) => ({ ...l, originalIndex: idx }));
     
+    // 1년 이내 날짜 계산
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    oneYearAgo.setHours(0,0,0,0);
+
     displayList = allLectures.filter(item => {
+      // 날짜가 없거나, 1년 이전 기록은 검색 대상에서 제외
+      const itemDate = parseToDateObj(item.date);
+      if (!itemDate || itemDate < oneYearAgo) return false;
+
       if (isNumericSearch) {
-        // [신규] 숫자는 연설 번호와 정확히 일치할 때만 검색
-        return String(item.outlineNo) === search;
+        // [신규] 숫자 검색 시 강연 번호와 완벽히 동일할 때만 표시
+        return String(item.outlineNo) === currentSearchVal;
       } else {
         const searchableText = (
           (item.title || '') + 
@@ -1191,11 +1224,11 @@ function renderTable() {
           (item.mic1 || '') + 
           (item.mic2 || '')
         ).toLowerCase();
-        return searchableText.includes(search);
+        return searchableText.includes(currentSearchVal);
       }
     });
 
-    // [신규] 검색 결과는 무조건 최근 날짜부터 오래된 날짜 순(내림차순)으로 정렬
+    // 검색 결과는 최신순(내림차순) 정렬
     displayList.sort((a, b) => {
       const dA = parseToDateObj(a.date);
       const dB = parseToDateObj(b.date);
@@ -1206,6 +1239,7 @@ function renderTable() {
     });
 
   } else {
+    // 일반 계획표 모드 (선택된 연도만 오름차순 표시)
     const range = getServiceYearRange(currentServiceYear);
     const sundays = generateSundays(range.start, range.end);
     
@@ -1224,7 +1258,6 @@ function renderTable() {
       }
     });
 
-    // 일반 목록은 과거부터 미래 순(오름차순)으로 정렬
     windowLectures.sort((a, b) => {
       const dA = parseToDateObj(a.date);
       const dB = parseToDateObj(b.date);
@@ -1242,7 +1275,8 @@ function renderTable() {
   displayList.forEach(item => {
       const isPlaceholder = item.originalIndex === -1;
       const isSpecial = !isPlaceholder && !item.outlineNo && item.title;
-      const isThisWeek = (item.date === thisSundayISO && !isSearching);
+      // 검색 중일 때는 하이라이트를 하지 않음
+      const isThisWeek = (item.date === thisSundayISO && !isSearchModeActive);
 
       const tr = document.createElement('tr');
       let rowClasses = [];
@@ -1290,16 +1324,11 @@ function renderTable() {
         }
       }
 
-      // [신규] 검색 중일 때만 연도를 붙여서 보여주고 평상시엔 뺌
-      let displayD = isSearching ? formatSearchDisplayDate(item.date) : formatDisplayDate(item.date);
+      let displayD = isSearchModeActive ? formatSearchDisplayDate(item.date) : formatDisplayDate(item.date);
       
       let dateClass = isPlaceholder ? 'text-black-50' : 'text-secondary';
-      if (isSpecial) { 
-          dateClass = 'text-dark fw-bold'; 
-      }
-      if (isThisWeek) {
-          dateClass += ' fw-bold'; 
-      }
+      if (isSpecial) { dateClass = 'text-dark fw-bold'; }
+      if (isThisWeek) { dateClass += ' fw-bold'; }
 
       tr.innerHTML = `
         <td class="${dateClass} text-nowrap">${displayD || '-'}</td>
@@ -1482,7 +1511,8 @@ function deleteLecture(index) {
 function exportToPDF() {
   let html = '';
   let chunks = [];
-  // 내보내기 문서용 데이터 추출 (검색 중이라면 검색 결과 출력, 아니면 전체 출력)
+  
+  // 내보내기 시에는 진행 중인 검색 결과만 싹 출력
   let exportData = displayList; 
   
   for (let i = 0; i < exportData.length; i += 22) {
@@ -1520,7 +1550,7 @@ function exportToPDF() {
 
       html += `
         <tr${trClass}>
-          <!-- [내보내기] 연도 제외한 원래 포맷으로 무조건 출력 -->
+          <!-- 내보내기 문서에서는 무조건 연도 뺀 깔끔한 날짜만 출력 -->
           <td class="date-col ${boldClass}">${formatDisplayDate(item.date) || ''}</td>
           <td class="title-col ${boldClass}">${titleHTML}</td>
           <td>${item.speaker || ''}</td>
