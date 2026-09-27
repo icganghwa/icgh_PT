@@ -237,16 +237,15 @@
 <!-- 3. 메인 애플리케이션 화면 -->
 <div id="mainApp" class="py-4" style="display: none;">
   <div class="container-fluid px-4">
-    <!-- 상단 타이틀 (일반 사용자는 숨김 처리) -->
+    <!-- 상단 타이틀 -->
     <div id="topHeaderArea" class="mb-4 pb-2 border-bottom text-center">
       <h2 class="fw-bold mb-1" style="color: var(--theme-blue);"><i class="bi bi-calendar-week me-2"></i>공개 강연 일정 관리</h2>
       <p class="text-muted mb-0" style="font-size: 0.85rem;">강연 제목과 초대 연사를 손쉽게 관리하세요.</p>
     </div>
 
-    <!-- 공개 강연 일정 목록 뷰 -->
+    <!-- 목록 뷰 -->
     <div id="talkListView" class="card shadow-sm border-0 mb-4">
       <div class="card-header card-header-custom py-3 d-flex justify-content-between align-items-center">
-        <!-- 봉사 연도 선택 드롭다운 결합 -->
         <div class="d-flex align-items-center gap-2">
             <h5 class="mb-0 fw-semibold"><i class="bi bi-table me-2"></i>공개 강연 계획표</h5>
             <select id="serviceYearSelect" class="form-select form-select-sm shadow-sm border-0 fw-bold ms-2" style="width: auto; border-radius: 6px; cursor: pointer; background-color: rgba(255,255,255,0.9); color: var(--theme-blue);" onchange="changeServiceYear(this.value)">
@@ -260,9 +259,9 @@
       <div class="card-body bg-white border-bottom py-3">
         <div class="row g-3 align-items-center">
           <div class="col-md-7 col-lg-7">
-            <!-- [신규] 명시적 검색 버튼 클릭/엔터키 모드 적용 -->
+            <!-- 수동 검색창 (버튼/엔터 클릭 시에만 작동) -->
             <div class="input-group">
-              <input type="text" id="searchInput" class="form-control ps-3 border-secondary" placeholder="연설 번호, 연사명 등 (단어는 2글자 이상)" onkeypress="if(event.key === 'Enter') executeSearch()">
+              <input type="text" id="searchInput" class="form-control ps-3 border-secondary" placeholder="연설 번호 또는 연사/제목 등 (단어는 2글자 이상)" onkeypress="if(event.key === 'Enter') executeSearch()">
               <button class="btn btn-secondary px-3" type="button" onclick="executeSearch()"><i class="bi bi-search"></i> 검색</button>
               <button class="btn btn-outline-secondary px-3" type="button" onclick="clearSearch()" title="검색 초기화"><i class="bi bi-x-lg"></i></button>
             </div>
@@ -272,7 +271,6 @@
         </div>
       </div>
       <div class="table-responsive table-scroll-container">
-        <!-- 표에 schedule-table 클래스 유지 -->
         <table class="table table-hover table-bordered align-middle mb-0 text-center schedule-table">
           <thead class="bg-white">
             <tr>
@@ -296,7 +294,7 @@
       </div>
     </div>
 
-    <!-- 사용자 관리 뷰 -->
+    <!-- 사용자 관리 및 형제 명단 관리 뷰 -->
     <div id="userManageView" class="card shadow-sm border-0" style="display: none;">
       <div class="card-header bg-dark text-white py-3 d-flex justify-content-between align-items-center">
         <h5 class="mb-0 fw-semibold"><i class="bi bi-gear-fill me-2"></i>사용자 및 담당자 관리</h5>
@@ -491,41 +489,25 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 // ==========================================
-// 1. 여기에 발급받은 Firebase Config 코드를 꼭 붙여넣으세요!
+// 전역 변수 선언 (오류 방지를 위해 최상단 배치)
 // ==========================================
-const firebaseConfig = {
-  apiKey: "API_KEY_위치",
-  authDomain: "AUTH_DOMAIN_위치",
-  databaseURL: "DATABASE_URL_위치",
-  projectId: "PROJECT_ID_위치",
-  storageBucket: "STORAGE_BUCKET_위치",
-  messagingSenderId: "MESSAGING_SENDER_ID_위치",
-  appId: "APP_ID_위치"
-};
+var currentUserRole = null; 
+var currentUserName = "";
+var modal;
+var resetModal;
+var outlineListModal;
 
-try {
-  firebase.initializeApp(firebaseConfig);
-} catch (e) {
-  console.error("Firebase 초기화 에러:", e);
-}
-const database = firebase.database();
+var lectures = [];
+var displayList = [];
+var allowedUsers = []; 
+var suspendedOutlines = []; 
+var brotherNames = []; 
+var outlineTitles = {};
+var audioCtx;
 
-let currentUserRole = null; 
-let currentUserName = "";
-let modal;
-let resetModal;
-let outlineListModal;
-
-let lectures = [];
-let displayList = [];
-let allowedUsers = []; 
-let suspendedOutlines = []; 
-let brotherNames = []; 
-let outlineTitles = {};
-let audioCtx;
-
-// 봉사 연도(9월 기준) 로직 계산
-let currentServiceYear = new Date().getMonth() >= 8 ? new Date().getFullYear() : new Date().getFullYear() - 1;
+var currentServiceYear = new Date().getMonth() >= 8 ? new Date().getFullYear() : new Date().getFullYear() - 1;
+var isSearchModeActive = false;
+var currentSearchVal = '';
 
 const defaultBrotherNames = ["강용호", "김가우", "김대성", "김선정", "김윤건", "김현유", "민경태", "박남섭", "박수현", "박인규", "서금모", "서성남", "서영석", "은지상", "이석재", "이정로", "이찬호", "임동수", "장세관", "정용기", "조건희", "조오진", "주범서", "지역환", "차재승", "한일봉"];
 const defaultOutlineTitles = {
@@ -570,7 +552,27 @@ const defaultOutlineTitles = {
   191: "사랑과 믿음이 세상을 이기는 방법", 192: "당신은 영원한 생명에 이르는 길을 걷고 있는가?", 193: "세계적 고난의 때에 있을 구출", 194: "경건한 지혜는 우리에게 어떻게 유익을 주는가?"
 };
 
-// [방어코드] 파이어베이스에서 읽어온 데이터가 객체 형태로 꼬여있어도 강제로 배열로 변환
+// ==========================================
+// 1. 여기에 발급받은 Firebase Config 코드를 꼭 붙여넣으세요!
+// ==========================================
+const firebaseConfig = {
+  apiKey: "AIzaSyApZWpHsA3VyArChMcnGPWNeW4-2LDjX5U",
+  authDomain: "pt-ganghwa.firebaseapp.com",
+  projectId: "pt-ganghwa",
+  storageBucket: "pt-ganghwa.firebasestorage.app",
+  messagingSenderId: "755057910418",
+  appId: "1:755057910418:web:e468987e39dda55bc9fc4b"
+};
+
+var database = null;
+try {
+  firebase.initializeApp(firebaseConfig);
+  database = firebase.database();
+} catch (e) {
+  console.error("Firebase 초기화 에러 (설정값을 확인하세요):", e);
+}
+
+// [방어코드] 파이어베이스에서 읽어온 데이터가 객체 형태로 꼬여있어도 강제로 배열로 안전하게 복구
 function safeArray(obj) {
   if (!obj) return [];
   if (Array.isArray(obj)) return obj;
@@ -605,7 +607,7 @@ function formatDateToISO(dateObj) {
   return `${y}-${m}-${d}`;
 }
 
-// 기본 화면/인쇄용 날짜 포맷 (MM월 DD일)
+// 화면/인쇄용 날짜 포맷 (MM월 DD일)
 function formatDisplayDate(dateStr) {
   const d = parseToDateObj(dateStr);
   if (!d) return dateStr;
@@ -614,7 +616,7 @@ function formatDisplayDate(dateStr) {
   return `${mm}월 ${dd}일`;
 }
 
-// 검색 전용 날짜 포맷 (YY년 MM월 DD일)
+// 검색용 포맷 (YY년 MM월 DD일)
 function formatSearchDisplayDate(dateStr) {
   const d = parseToDateObj(dateStr);
   if (!d) return dateStr;
@@ -669,55 +671,55 @@ function changeServiceYear(year) {
     renderTable();
 }
 
-database.ref('public_talks_app').on('value', (snapshot) => {
-  try {
-    const data = snapshot.val();
-    let needSave = false;
-    if (data) {
-      // [방어코드 적용] 파이어베이스에서 객체로 변환된 데이터를 강제로 배열로 안전하게 복구
-      lectures = safeArray(data.lectures);
-      outlineTitles = data.outlineTitles || defaultOutlineTitles;
-      suspendedOutlines = safeArray(data.suspendedOutlines).map(Number);
-      allowedUsers = safeArray(data.allowedUsers);
-      brotherNames = safeArray(data.brotherNames);
+if (database) {
+  database.ref('public_talks_app').on('value', (snapshot) => {
+    try {
+      const data = snapshot.val();
+      let needSave = false;
+      if (data) {
+        lectures = safeArray(data.lectures);
+        outlineTitles = data.outlineTitles || defaultOutlineTitles;
+        suspendedOutlines = safeArray(data.suspendedOutlines).map(Number);
+        allowedUsers = safeArray(data.allowedUsers);
+        brotherNames = safeArray(data.brotherNames);
+        
+        lectures.forEach(l => {
+            if (l.date && !String(l.date).includes('-')) {
+                 const dObj = parseToDateObj(l.date);
+                 if (dObj) { 
+                    l.date = formatDateToISO(dObj); 
+                    needSave = true; 
+                 }
+            }
+        });
+      } else {
+        lectures = [];
+        outlineTitles = JSON.parse(JSON.stringify(defaultOutlineTitles));
+        brotherNames = [...defaultBrotherNames];
+        needSave = true;
+      }
       
-      lectures.forEach(l => {
-          if (l.date && !String(l.date).includes('-')) {
-               const dObj = parseToDateObj(l.date);
-               if (dObj) { 
-                  l.date = formatDateToISO(dObj); 
-                  needSave = true; 
-               }
-          }
-      });
-    } else {
-      lectures = [];
-      outlineTitles = JSON.parse(JSON.stringify(defaultOutlineTitles));
-      brotherNames = [...defaultBrotherNames];
-      needSave = true;
-    }
-    
-    if (needSave) {
-        saveToFirebase();
-    }
-    
-    updateDatalist(); 
-    
-    if (currentUserRole) {
-      if (document.getElementById('talkListView').style.display !== 'none') {
-         renderTable();
+      if (needSave) saveToFirebase();
+      updateDatalist(); 
+      
+      if (currentUserRole) {
+        if (document.getElementById('talkListView').style.display !== 'none') {
+           renderTable();
+        }
+        if (document.getElementById('userManageView').style.display !== 'none') {
+           renderUserManage();
+           renderBrotherManage();
+        }
       }
-      if (document.getElementById('userManageView').style.display !== 'none') {
-         renderUserManage();
-         renderBrotherManage();
-      }
-    }
-  } catch(e) {
-    console.error("데이터 로드 중 에러 발생:", e);
-  }
-});
+    } catch(e) { console.error("데이터 로드 중 에러 발생:", e); }
+  });
+}
 
 function saveToFirebase() {
+  if (!database) {
+    alert("Firebase 데이터베이스에 연결되어 있지 않아 저장할 수 없습니다.");
+    return;
+  }
   database.ref('public_talks_app').set({
     lectures: lectures,
     outlineTitles: outlineTitles,
@@ -751,12 +753,9 @@ document.addEventListener("DOMContentLoaded", () => {
             setTimeout(() => { checkUpcomingAssignments(isMobile); }, 500);
         }
     }
-  } catch(e) {
-    console.error("자동 로그인 에러:", e);
-  }
+  } catch(e) { console.error("자동 로그인 처리 에러:", e); }
 });
 
-// [방어코드 적용] 애플 기기 등에서 권한 충돌 방지
 function initAudioContext() {
   try {
     if (!audioCtx) {
@@ -768,9 +767,7 @@ function initAudioContext() {
     if (audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume();
     }
-  } catch (err) {
-    console.log("AudioContext 초기화 무시됨:", err);
-  }
+  } catch(err) { console.log("Audio 무시됨", err); }
 }
 
 function playNotificationSound() {
@@ -800,6 +797,10 @@ function handleEnter(e) { if (e.key === 'Enter' || e.keyCode === 13) { doLogin()
 function doLogin() {
   try {
     initAudioContext(); 
+    
+    if (!database) {
+      alert("데이터베이스 연결에 문제가 있습니다. 소스코드 맨 밑의 firebaseConfig 내용을 다시 확인해 주세요.");
+    }
 
     const id = document.getElementById('loginId').value.trim();
     const pw = document.getElementById('loginPw').value.trim();
@@ -809,7 +810,6 @@ function doLogin() {
         currentUserRole = 'ADMIN';
         currentUserName = '관리자';
     } else if (pw === '191435') {
-        // 이 부분에서 발생하던 치명적 에러를 safeArray로 원천 차단했습니다.
         if (allowedUsers.includes(id)) {
             currentUserRole = 'USER';
             currentUserName = id;
@@ -861,7 +861,7 @@ function doLogin() {
     }, loadingDelay);
   } catch (err) {
     console.error("로그인 실행 에러:", err);
-    alert("로그인 처리 중 일시적인 오류가 발생했습니다. 확인: " + err.message);
+    alert("오류가 발생했습니다. 브라우저 캐시를 삭제하거나 강력 새로고침을 해주세요.");
   }
 }
 
@@ -972,11 +972,7 @@ function checkUpcomingAssignments(isMobile) {
     
     if (myAssignments.length > 0) {
         document.getElementById('assignmentAlertContent').innerHTML = myAssignments.join('');
-        
-        if (isMobile) {
-            playNotificationSound();
-        }
-        
+        if (isMobile) { playNotificationSound(); }
         const alertModal = new bootstrap.Modal(document.getElementById('assignmentAlertModal'));
         alertModal.show();
     }
@@ -1175,15 +1171,10 @@ function highlightName(name, isoDateStr) {
   return `<span>${name}</span>`;
 }
 
-// [검색 모드 스마트 기능 적용] 버튼이나 엔터를 누를 때만 동작
-let isSearchModeActive = false;
-let currentSearchVal = '';
-
 function executeSearch() {
   const searchVal = document.getElementById('searchInput').value.trim();
   if (searchVal !== '') {
       const isNumeric = /^\d+$/.test(searchVal);
-      // 단어 검색은 오작동을 막기 위해 2글자 이상 강제
       if (!isNumeric && searchVal.length < 2) {
           alert('단어 검색은 2글자 이상 입력해주세요.');
           return;
@@ -1218,12 +1209,17 @@ function renderTable() {
   displayList = [];
   
   if (isSearchModeActive) {
-    // 1. 검색 모드: 전체 연도, 모든 데이터를 불러와 최신 날짜 순으로 정렬
     let allLectures = lectures.map((l, idx) => ({ ...l, originalIndex: idx }));
     
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    oneYearAgo.setHours(0,0,0,0);
+
     displayList = allLectures.filter(item => {
+      const itemDate = parseToDateObj(item.date);
+      if (!itemDate || itemDate < oneYearAgo) return false;
+
       if (isNumericSearch) {
-        // [신규] 숫자 입력 시 "강연 번호와 정확하게 일치"하는 것만 반환
         return String(item.outlineNo) === currentSearchVal;
       } else {
         const searchableText = (
@@ -1240,7 +1236,6 @@ function renderTable() {
       }
     });
 
-    // 검색 결과 정렬: 내림차순 (가장 최근 날짜부터 오래된 날짜 순서)
     displayList.sort((a, b) => {
       const dA = parseToDateObj(a.date);
       const dB = parseToDateObj(b.date);
@@ -1251,7 +1246,6 @@ function renderTable() {
     });
 
   } else {
-    // 2. 평상시 목록 모드: 현재 선택된 연도의 일정만 표시 (오름차순)
     const range = getServiceYearRange(currentServiceYear);
     const sundays = generateSundays(range.start, range.end);
     
@@ -1335,16 +1329,11 @@ function renderTable() {
         }
       }
 
-      // 검색 모드일 때만 앞에 연도(26년)를 붙여서 보여줌
       let displayD = isSearchModeActive ? formatSearchDisplayDate(item.date) : formatDisplayDate(item.date);
       
       let dateClass = isPlaceholder ? 'text-black-50' : 'text-secondary';
-      if (isSpecial) { 
-          dateClass = 'text-dark fw-bold'; 
-      }
-      if (isThisWeek) {
-          dateClass += ' fw-bold'; 
-      }
+      if (isSpecial) { dateClass = 'text-dark fw-bold'; }
+      if (isThisWeek) { dateClass += ' fw-bold'; }
 
       tr.innerHTML = `
         <td class="${dateClass} text-nowrap">${displayD || '-'}</td>
@@ -1528,7 +1517,6 @@ function exportToPDF() {
   let html = '';
   let chunks = [];
   
-  // 내보내기 시에는 무조건 '검색 결과 화면' 그대로 출력
   let exportData = displayList; 
   
   for (let i = 0; i < exportData.length; i += 22) {
@@ -1566,7 +1554,6 @@ function exportToPDF() {
 
       html += `
         <tr${trClass}>
-          <!-- 내보내기 문서에서는 오직 연도가 빠진 "09월 09일" 형태만 출력 -->
           <td class="date-col ${boldClass}">${formatDisplayDate(item.date) || ''}</td>
           <td class="title-col ${boldClass}">${titleHTML}</td>
           <td>${item.speaker || ''}</td>
