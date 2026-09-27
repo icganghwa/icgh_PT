@@ -141,6 +141,7 @@
     }
   </style>
 
+  <!-- 스마트폰 아이콘 동적 생성 스크립트 -->
   <script>
     document.addEventListener("DOMContentLoaded", function() {
         const canvas = document.createElement('canvas');
@@ -214,7 +215,7 @@
   </div>
 </div>
 
-<!-- 2. 로딩 화면 -->
+<!-- 2. 기기 맞춤형 로딩 화면 -->
 <div id="loadingScreen" class="justify-content-center align-items-center" style="display: none;">
   <div class="card shadow-lg border-0" style="width: 100%; max-width: 360px; border-radius: 16px; overflow: hidden;">
     <div class="text-center text-white py-5 px-4" style="background-color: var(--theme-blue);">
@@ -236,15 +237,16 @@
 <!-- 3. 메인 애플리케이션 화면 -->
 <div id="mainApp" class="py-4" style="display: none;">
   <div class="container-fluid px-4">
-    <!-- 상단 타이틀 -->
+    <!-- 상단 타이틀 (일반 사용자는 숨김 처리) -->
     <div id="topHeaderArea" class="mb-4 pb-2 border-bottom text-center">
       <h2 class="fw-bold mb-1" style="color: var(--theme-blue);"><i class="bi bi-calendar-week me-2"></i>공개 강연 일정 관리</h2>
       <p class="text-muted mb-0" style="font-size: 0.85rem;">강연 제목과 초대 연사를 손쉽게 관리하세요.</p>
     </div>
 
-    <!-- 목록 뷰 -->
+    <!-- 공개 강연 일정 목록 뷰 -->
     <div id="talkListView" class="card shadow-sm border-0 mb-4">
       <div class="card-header card-header-custom py-3 d-flex justify-content-between align-items-center">
+        <!-- 봉사 연도 선택 드롭다운 결합 -->
         <div class="d-flex align-items-center gap-2">
             <h5 class="mb-0 fw-semibold"><i class="bi bi-table me-2"></i>공개 강연 계획표</h5>
             <select id="serviceYearSelect" class="form-select form-select-sm shadow-sm border-0 fw-bold ms-2" style="width: auto; border-radius: 6px; cursor: pointer; background-color: rgba(255,255,255,0.9); color: var(--theme-blue);" onchange="changeServiceYear(this.value)">
@@ -258,9 +260,9 @@
       <div class="card-body bg-white border-bottom py-3">
         <div class="row g-3 align-items-center">
           <div class="col-md-7 col-lg-7">
-            <!-- 검색창 (버튼/엔터 클릭 시에만 작동) -->
+            <!-- [신규] 명시적 검색 버튼 클릭/엔터키 모드 적용 -->
             <div class="input-group">
-              <input type="text" id="searchInput" class="form-control ps-3 border-secondary" placeholder="연설 번호, 연사명 검색 (단어는 2글자 이상)" onkeypress="if(event.key === 'Enter') executeSearch()">
+              <input type="text" id="searchInput" class="form-control ps-3 border-secondary" placeholder="연설 번호, 연사명 등 (단어는 2글자 이상)" onkeypress="if(event.key === 'Enter') executeSearch()">
               <button class="btn btn-secondary px-3" type="button" onclick="executeSearch()"><i class="bi bi-search"></i> 검색</button>
               <button class="btn btn-outline-secondary px-3" type="button" onclick="clearSearch()" title="검색 초기화"><i class="bi bi-x-lg"></i></button>
             </div>
@@ -270,6 +272,7 @@
         </div>
       </div>
       <div class="table-responsive table-scroll-container">
+        <!-- 표에 schedule-table 클래스 유지 -->
         <table class="table table-hover table-bordered align-middle mb-0 text-center schedule-table">
           <thead class="bg-white">
             <tr>
@@ -567,7 +570,13 @@ const defaultOutlineTitles = {
   191: "사랑과 믿음이 세상을 이기는 방법", 192: "당신은 영원한 생명에 이르는 길을 걷고 있는가?", 193: "세계적 고난의 때에 있을 구출", 194: "경건한 지혜는 우리에게 어떻게 유익을 주는가?"
 };
 
-// 날짜 변환 함수 안전성 강화 (에러 방지)
+// [방어코드] 파이어베이스에서 읽어온 데이터가 객체 형태로 꼬여있어도 강제로 배열로 변환
+function safeArray(obj) {
+  if (!obj) return [];
+  if (Array.isArray(obj)) return obj;
+  return Object.values(obj);
+}
+
 function parseToDateObj(dateStr) {
   if (!dateStr) return null;
   const str = String(dateStr).trim();
@@ -596,7 +605,7 @@ function formatDateToISO(dateObj) {
   return `${y}-${m}-${d}`;
 }
 
-// 화면/인쇄용 날짜 포맷 (MM월 DD일)
+// 기본 화면/인쇄용 날짜 포맷 (MM월 DD일)
 function formatDisplayDate(dateStr) {
   const d = parseToDateObj(dateStr);
   if (!d) return dateStr;
@@ -605,7 +614,7 @@ function formatDisplayDate(dateStr) {
   return `${mm}월 ${dd}일`;
 }
 
-// 검색용 포맷 (YY년 MM월 DD일)
+// 검색 전용 날짜 포맷 (YY년 MM월 DD일)
 function formatSearchDisplayDate(dateStr) {
   const d = parseToDateObj(dateStr);
   if (!d) return dateStr;
@@ -655,6 +664,8 @@ function populateYearSelect() {
 function changeServiceYear(year) {
     currentServiceYear = parseInt(year);
     document.getElementById('searchInput').value = '';
+    isSearchModeActive = false;
+    currentSearchVal = '';
     renderTable();
 }
 
@@ -663,11 +674,12 @@ database.ref('public_talks_app').on('value', (snapshot) => {
     const data = snapshot.val();
     let needSave = false;
     if (data) {
-      lectures = data.lectures || [];
+      // [방어코드 적용] 파이어베이스에서 객체로 변환된 데이터를 강제로 배열로 안전하게 복구
+      lectures = safeArray(data.lectures);
       outlineTitles = data.outlineTitles || defaultOutlineTitles;
-      suspendedOutlines = data.suspendedOutlines || [];
-      allowedUsers = data.allowedUsers || [];
-      brotherNames = data.brotherNames || defaultBrotherNames;
+      suspendedOutlines = safeArray(data.suspendedOutlines).map(Number);
+      allowedUsers = safeArray(data.allowedUsers);
+      brotherNames = safeArray(data.brotherNames);
       
       lectures.forEach(l => {
           if (l.date && !String(l.date).includes('-')) {
@@ -685,7 +697,9 @@ database.ref('public_talks_app').on('value', (snapshot) => {
       needSave = true;
     }
     
-    if (needSave) saveToFirebase();
+    if (needSave) {
+        saveToFirebase();
+    }
     
     updateDatalist(); 
     
@@ -698,7 +712,7 @@ database.ref('public_talks_app').on('value', (snapshot) => {
          renderBrotherManage();
       }
     }
-  } catch (e) {
+  } catch(e) {
     console.error("데이터 로드 중 에러 발생:", e);
   }
 });
@@ -738,19 +752,24 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
   } catch(e) {
-    console.error("자동 로그인 처리 에러:", e);
+    console.error("자동 로그인 에러:", e);
   }
 });
 
+// [방어코드 적용] 애플 기기 등에서 권한 충돌 방지
 function initAudioContext() {
-  if (!audioCtx) {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (AudioContext) {
-          audioCtx = new AudioContext();
-      }
-  }
-  if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume();
+  try {
+    if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+            audioCtx = new AudioContext();
+        }
+    }
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+  } catch (err) {
+    console.log("AudioContext 초기화 무시됨:", err);
   }
 }
 
@@ -778,7 +797,6 @@ function playNotificationSound() {
 
 function handleEnter(e) { if (e.key === 'Enter' || e.keyCode === 13) { doLogin(); } }
 
-// 로그인 오류 완벽 차단을 위한 예외처리 추가
 function doLogin() {
   try {
     initAudioContext(); 
@@ -791,6 +809,7 @@ function doLogin() {
         currentUserRole = 'ADMIN';
         currentUserName = '관리자';
     } else if (pw === '191435') {
+        // 이 부분에서 발생하던 치명적 에러를 safeArray로 원천 차단했습니다.
         if (allowedUsers.includes(id)) {
             currentUserRole = 'USER';
             currentUserName = id;
@@ -840,9 +859,9 @@ function doLogin() {
           checkUpcomingAssignments(isMobile);
       }
     }, loadingDelay);
-  } catch (e) {
-    console.error("로그인 함수 에러:", e);
-    alert("오류가 발생했습니다. 브라우저 캐시를 삭제하거나 강력 새로고침을 해주세요.");
+  } catch (err) {
+    console.error("로그인 실행 에러:", err);
+    alert("로그인 처리 중 일시적인 오류가 발생했습니다. 확인: " + err.message);
   }
 }
 
@@ -1156,7 +1175,7 @@ function highlightName(name, isoDateStr) {
   return `<span>${name}</span>`;
 }
 
-// [검색 알고리즘 업데이트] 버튼 클릭 또는 엔터 키를 쳐야만 작동
+// [검색 모드 스마트 기능 적용] 버튼이나 엔터를 누를 때만 동작
 let isSearchModeActive = false;
 let currentSearchVal = '';
 
@@ -1164,6 +1183,7 @@ function executeSearch() {
   const searchVal = document.getElementById('searchInput').value.trim();
   if (searchVal !== '') {
       const isNumeric = /^\d+$/.test(searchVal);
+      // 단어 검색은 오작동을 막기 위해 2글자 이상 강제
       if (!isNumeric && searchVal.length < 2) {
           alert('단어 검색은 2글자 이상 입력해주세요.');
           return;
@@ -1198,20 +1218,12 @@ function renderTable() {
   displayList = [];
   
   if (isSearchModeActive) {
+    // 1. 검색 모드: 전체 연도, 모든 데이터를 불러와 최신 날짜 순으로 정렬
     let allLectures = lectures.map((l, idx) => ({ ...l, originalIndex: idx }));
     
-    // 1년 이내 날짜 계산
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-    oneYearAgo.setHours(0,0,0,0);
-
     displayList = allLectures.filter(item => {
-      // 날짜가 없거나, 1년 이전 기록은 검색 대상에서 제외
-      const itemDate = parseToDateObj(item.date);
-      if (!itemDate || itemDate < oneYearAgo) return false;
-
       if (isNumericSearch) {
-        // [신규] 숫자 검색 시 강연 번호와 완벽히 동일할 때만 표시
+        // [신규] 숫자 입력 시 "강연 번호와 정확하게 일치"하는 것만 반환
         return String(item.outlineNo) === currentSearchVal;
       } else {
         const searchableText = (
@@ -1228,7 +1240,7 @@ function renderTable() {
       }
     });
 
-    // 검색 결과는 최신순(내림차순) 정렬
+    // 검색 결과 정렬: 내림차순 (가장 최근 날짜부터 오래된 날짜 순서)
     displayList.sort((a, b) => {
       const dA = parseToDateObj(a.date);
       const dB = parseToDateObj(b.date);
@@ -1239,7 +1251,7 @@ function renderTable() {
     });
 
   } else {
-    // 일반 계획표 모드 (선택된 연도만 오름차순 표시)
+    // 2. 평상시 목록 모드: 현재 선택된 연도의 일정만 표시 (오름차순)
     const range = getServiceYearRange(currentServiceYear);
     const sundays = generateSundays(range.start, range.end);
     
@@ -1275,7 +1287,6 @@ function renderTable() {
   displayList.forEach(item => {
       const isPlaceholder = item.originalIndex === -1;
       const isSpecial = !isPlaceholder && !item.outlineNo && item.title;
-      // 검색 중일 때는 하이라이트를 하지 않음
       const isThisWeek = (item.date === thisSundayISO && !isSearchModeActive);
 
       const tr = document.createElement('tr');
@@ -1324,11 +1335,16 @@ function renderTable() {
         }
       }
 
+      // 검색 모드일 때만 앞에 연도(26년)를 붙여서 보여줌
       let displayD = isSearchModeActive ? formatSearchDisplayDate(item.date) : formatDisplayDate(item.date);
       
       let dateClass = isPlaceholder ? 'text-black-50' : 'text-secondary';
-      if (isSpecial) { dateClass = 'text-dark fw-bold'; }
-      if (isThisWeek) { dateClass += ' fw-bold'; }
+      if (isSpecial) { 
+          dateClass = 'text-dark fw-bold'; 
+      }
+      if (isThisWeek) {
+          dateClass += ' fw-bold'; 
+      }
 
       tr.innerHTML = `
         <td class="${dateClass} text-nowrap">${displayD || '-'}</td>
@@ -1512,7 +1528,7 @@ function exportToPDF() {
   let html = '';
   let chunks = [];
   
-  // 내보내기 시에는 진행 중인 검색 결과만 싹 출력
+  // 내보내기 시에는 무조건 '검색 결과 화면' 그대로 출력
   let exportData = displayList; 
   
   for (let i = 0; i < exportData.length; i += 22) {
@@ -1550,7 +1566,7 @@ function exportToPDF() {
 
       html += `
         <tr${trClass}>
-          <!-- 내보내기 문서에서는 무조건 연도 뺀 깔끔한 날짜만 출력 -->
+          <!-- 내보내기 문서에서는 오직 연도가 빠진 "09월 09일" 형태만 출력 -->
           <td class="date-col ${boldClass}">${formatDisplayDate(item.date) || ''}</td>
           <td class="title-col ${boldClass}">${titleHTML}</td>
           <td>${item.speaker || ''}</td>
