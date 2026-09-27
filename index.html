@@ -237,7 +237,7 @@
 <!-- 3. 메인 애플리케이션 화면 -->
 <div id="mainApp" class="py-4" style="display: none;">
   <div class="container-fluid px-4">
-    <!-- 상단 타이틀 -->
+    <!-- 상단 타이틀 (일반 사용자는 숨김 처리) -->
     <div id="topHeaderArea" class="mb-4 pb-2 border-bottom text-center">
       <h2 class="fw-bold mb-1" style="color: var(--theme-blue);"><i class="bi bi-calendar-week me-2"></i>공개 강연 일정 관리</h2>
       <p class="text-muted mb-0" style="font-size: 0.85rem;">강연 제목과 초대 연사를 손쉽게 관리하세요.</p>
@@ -246,6 +246,7 @@
     <!-- 공개 강연 일정 목록 뷰 -->
     <div id="talkListView" class="card shadow-sm border-0 mb-4">
       <div class="card-header card-header-custom py-3 d-flex justify-content-between align-items-center">
+        <!-- 봉사 연도 선택 드롭다운 결합 -->
         <div class="d-flex align-items-center gap-2">
             <h5 class="mb-0 fw-semibold"><i class="bi bi-table me-2"></i>공개 강연 계획표</h5>
             <select id="serviceYearSelect" class="form-select form-select-sm shadow-sm border-0 fw-bold ms-2" style="width: auto; border-radius: 6px; cursor: pointer; background-color: rgba(255,255,255,0.9); color: var(--theme-blue);" onchange="changeServiceYear(this.value)">
@@ -271,6 +272,7 @@
         </div>
       </div>
       <div class="table-responsive table-scroll-container">
+        <!-- 표에 schedule-table 클래스 유지 -->
         <table class="table table-hover table-bordered align-middle mb-0 text-center schedule-table">
           <thead class="bg-white">
             <tr>
@@ -373,18 +375,15 @@
   </div>
 </div>
 
-<!-- [신규] 검색 결과 없음 알림 및 빠른 추가 팝업 -->
+<!-- [신규 수정] 검색 결과 없음 알림 및 빠른 추가 팝업 (디자인 개선) -->
 <div class="modal fade" id="noResultModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-sm">
     <div class="modal-content border-0 shadow-lg">
       <div class="modal-body text-center p-4">
-        <div class="mb-3">
-          <i class="bi bi-search text-secondary" style="font-size: 2rem; opacity: 0.5;"></i>
-        </div>
-        <h5 class="fw-bold mb-2" style="color: var(--theme-blue);">제 <span id="nrOutlineNo"></span> 호</h5>
-        <p class="fw-bold text-dark mb-3 lh-sm" id="nrOutlineTitle" style="font-size: 1.05rem; word-break: keep-all;"></p>
+        <h6 class="fw-bold mb-2 text-secondary" style="font-size: 0.9rem;">골자 번호 : <span id="nrOutlineNo"></span></h6>
+        <h5 class="fw-bold text-dark mb-4 lh-base" id="nrOutlineTitle" style="word-break: keep-all;"></h5>
         <div class="p-3 mb-4 rounded-3" style="background-color: #fef2f2; border: 1px solid #fecaca;">
-          <span class="text-danger fw-bold" style="font-size: 0.85rem;"><i class="bi bi-info-circle-fill me-1"></i>최근 1년 이내에<br>사용된 적이 없는 연설입니다.</span>
+          <span class="text-danger fw-bold" style="font-size: 0.85rem;">최근 1년 이내에 사용된 적이 없는 연설입니다.<br><br>아래 버튼을 눌러 일정을 추가할 수 있습니다.</span>
         </div>
         <div id="nrAdminControls" style="display: none;">
           <button type="button" class="btn btn-theme w-100 fw-bold shadow-sm mb-2" onclick="openModalFromSearch()"><i class="bi bi-calendar-plus me-1"></i>일정 추가하기</button>
@@ -518,7 +517,7 @@ var currentUserName = "";
 var modal;
 var resetModal;
 var outlineListModal;
-var noResultModal; // [신규] 결과 없음 모달
+var noResultModal;
 
 var lectures = [];
 var displayList = [];
@@ -531,7 +530,7 @@ var audioCtx;
 var currentServiceYear = new Date().getMonth() >= 8 ? new Date().getFullYear() : new Date().getFullYear() - 1;
 var isSearchModeActive = false;
 var currentSearchVal = '';
-var searchTargetNo = ''; // [신규] 추가용 임시번호
+var searchTargetNo = ''; 
 
 const defaultBrotherNames = ["강용호", "김가우", "김대성", "김선정", "김윤건", "김현유", "민경태", "박남섭", "박수현", "박인규", "서금모", "서성남", "서영석", "은지상", "이석재", "이정로", "이찬호", "임동수", "장세관", "정용기", "조건희", "조오진", "주범서", "지역환", "차재승", "한일봉"];
 const defaultOutlineTitles = {
@@ -596,7 +595,6 @@ try {
   console.error("Firebase 초기화 에러 (설정값을 확인하세요):", e);
 }
 
-// 파이어베이스 데이터 안전하게 배열 변환
 function safeArray(obj) {
   if (!obj) return [];
   if (Array.isArray(obj)) return obj;
@@ -631,7 +629,6 @@ function formatDateToISO(dateObj) {
   return `${y}-${m}-${d}`;
 }
 
-// 화면/인쇄용 날짜 포맷 (MM월 DD일)
 function formatDisplayDate(dateStr) {
   const d = parseToDateObj(dateStr);
   if (!d) return dateStr;
@@ -640,7 +637,6 @@ function formatDisplayDate(dateStr) {
   return `${mm}월 ${dd}일`;
 }
 
-// 검색용 포맷 (YY년 MM월 DD일)
 function formatSearchDisplayDate(dateStr) {
   const d = parseToDateObj(dateStr);
   if (!d) return dateStr;
@@ -755,7 +751,7 @@ document.addEventListener("DOMContentLoaded", () => {
   modal = new bootstrap.Modal(document.getElementById('lectureModal'));
   resetModal = new bootstrap.Modal(document.getElementById('resetModal'));
   outlineListModal = new bootstrap.Modal(document.getElementById('outlineListModal'));
-  noResultModal = new bootstrap.Modal(document.getElementById('noResultModal')); // 신규 모달 연결
+  noResultModal = new bootstrap.Modal(document.getElementById('noResultModal')); 
   
   try {
     const savedRole = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
@@ -1192,7 +1188,6 @@ function highlightName(name, isoDateStr) {
   return `<span>${name}</span>`;
 }
 
-// [검색 모드 스마트 기능]
 function executeSearch() {
   const searchVal = document.getElementById('searchInput').value.trim();
   if (searchVal !== '') {
@@ -1204,10 +1199,8 @@ function executeSearch() {
       isSearchModeActive = true;
       currentSearchVal = searchVal.toLowerCase();
       
-      // 먼저 테이블을 그리고
       renderTable();
       
-      // 결과가 아무것도 없다면 팝업 띄우기 (숫자 검색일 때)
       if (isNumeric && displayList.length === 0) {
           const num = parseInt(searchVal, 10);
           if (outlineTitles[num]) {
@@ -1223,7 +1216,6 @@ function executeSearch() {
   }
 }
 
-// [신규] 검색 결과 없음 모달 띄우기
 function showNoResultModal(num, title) {
     searchTargetNo = num;
     document.getElementById('nrOutlineNo').innerText = num;
@@ -1232,7 +1224,6 @@ function showNoResultModal(num, title) {
     noResultModal.show();
 }
 
-// [신규] 팝업에서 바로 일정 추가창 열기
 function openModalFromSearch() {
     noResultModal.hide();
     clearSearch(); 
@@ -1267,7 +1258,6 @@ function renderTable() {
   if (isSearchModeActive) {
     let allLectures = lectures.map((l, idx) => ({ ...l, originalIndex: idx }));
     
-    // 최근 1년 계산
     const oneYearAgo = new Date();
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
     oneYearAgo.setHours(0,0,0,0);
@@ -1293,7 +1283,6 @@ function renderTable() {
       }
     });
 
-    // 최신 날짜 순(내림차순) 정렬
     displayList.sort((a, b) => {
       const dA = parseToDateObj(a.date);
       const dB = parseToDateObj(b.date);
@@ -1423,9 +1412,9 @@ function executeReset() {
   resetModal.hide();
 }
 
-function handleDateInput() { checkIfSunday(); }
+function handleDateInput() { checkIfSunday(); checkRecentUsage(); }
 
-function handleOutlineInput() { autoFillTitle(); checkSuspendedUsage(); }
+function handleOutlineInput() { autoFillTitle(); checkRecentUsage(); checkSuspendedUsage(); }
 
 function checkSuspendedUsage() {
     const num = parseInt(document.getElementById('inputOutlineNo').value, 10);
@@ -1452,6 +1441,43 @@ function autoFillTitle() {
     titleHelp.style.display = 'block';
   } else {
     titleHelp.style.display = 'none';
+  }
+}
+
+function checkRecentUsage() {
+  const num = document.getElementById('inputOutlineNo').value;
+  const warningEl = document.getElementById('recentWarning');
+  const currentIndex = document.getElementById('editIndex').value;
+  const targetDateStr = document.getElementById('inputDate').value.trim();
+  if (!num) { warningEl.style.display = 'none'; return; }
+
+  let baseDate = parseToDateObj(targetDateStr);
+  if (!baseDate) baseDate = new Date();
+
+  let mostRecentDateObj = null;
+  let mostRecentDateStr = "";
+
+  for (let i = 0; i < lectures.length; i++) {
+    if (i.toString() === currentIndex) continue;
+    if (String(lectures[i].outlineNo) === String(num) && lectures[i].date) {
+      const otherDate = parseToDateObj(lectures[i].date);
+      if (otherDate) {
+        const diffDays = Math.abs(baseDate - otherDate) / (1000 * 60 * 60 * 24);
+        if (diffDays <= 365) {
+          if (!mostRecentDateObj || otherDate > mostRecentDateObj) {
+            mostRecentDateObj = otherDate;
+            mostRecentDateStr = lectures[i].date;
+          }
+        }
+      }
+    }
+  }
+
+  if (mostRecentDateObj) {
+    warningEl.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i>최근 1년 이내 (${formatSearchDisplayDate(mostRecentDateStr)})에 사용된 연설 입니다.`;
+    warningEl.style.display = 'block';
+  } else {
+    warningEl.style.display = 'none';
   }
 }
 
@@ -1492,10 +1518,8 @@ function openModal(index = -1, dateStr = '') {
     document.getElementById('modalTitle').innerText = '강연 일정 등록';
   }
   
-  if(targetDate) {
-     document.getElementById('inputDate').value = targetDate;
-     checkIfSunday(); 
-  }
+  document.getElementById('inputDate').value = targetDate;
+  checkIfSunday(); 
   modal.show();
 }
 
