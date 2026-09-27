@@ -17,7 +17,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   
-  <!-- PDF 생성을 위한 외부 라이브러리 (앱 모드 인쇄 우회용) -->
+  <!-- PDF 생성을 위한 외부 라이브러리 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <style>
@@ -37,7 +37,6 @@
     .outline-text { font-size: 0.85rem; font-weight: 300; color: #475569; }
     .title-no-outline { font-weight: bold; font-style: italic; }
     
-    /* 배경색 전부 제거 (흰색 통일) */
     .special-event td { background-color: #ffffff; }
     .empty-slot td { background-color: #ffffff; color: #94a3b8; }
 
@@ -49,7 +48,7 @@
       vertical-align: middle; 
     }
     
-    .schedule-table { min-width: 1000px; } /* PC 등 기본 표 최소 너비 */
+    .schedule-table { min-width: 1000px; } 
 
     #loginScreen, #loadingScreen { background-color: #f1f5f9; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; display: flex; }
     .login-input { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
@@ -60,20 +59,16 @@
     input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     input[type="number"] { -moz-appearance: textfield; }
 
-    /* =========================================
-       이번 주 일정 하이라이트 (화면에서만 보임)
-       ========================================= */
+    /* 이번 주 일정 하이라이트 (화면에서만 보임) */
     @media screen {
       .this-week-row td {
-        background-color: #fffdf0 !important; /* 부드러운 노란빛 배경 */
-        border-top: 2px solid #facc15 !important; /* 진한 노란색 위 테두리 */
-        border-bottom: 2px solid #facc15 !important; /* 진한 노란색 아래 테두리 */
+        background-color: #fffdf0 !important; 
+        border-top: 2px solid #facc15 !important; 
+        border-bottom: 2px solid #facc15 !important; 
       }
     }
 
-    /* =========================================
-       [인쇄 및 PDF 내보내기 전용 스타일]
-       ========================================= */
+    /* 인쇄 및 PDF 내보내기 전용 스타일 */
     #printOverlay { 
       display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
       background-color: #e2e8f0; z-index: 99999; overflow-y: auto; -webkit-overflow-scrolling: touch;
@@ -112,9 +107,7 @@
       #printContent th, #printContent td { border: 1px solid #000 !important; }
     }
 
-    /* =========================================
-       [스마트폰 가로 모드(Landscape) 전용 최적화]
-       ========================================= */
+    /* 스마트폰 가로 모드(Landscape) 전용 최적화 */
     @media screen and (max-width: 950px) and (orientation: landscape) {
       .py-4 { padding-top: 0.3rem !important; padding-bottom: 0.3rem !important; }
       .mb-4 { margin-bottom: 0.3rem !important; }
@@ -126,7 +119,6 @@
       
       .table-scroll-container { max-height: 75vh !important; }
       
-      /* 표의 전체 너비를 콘텐츠에 맞게 자유롭게 확장시킴 */
       .schedule-table { 
           min-width: 100% !important; 
           width: max-content !important; 
@@ -134,14 +126,12 @@
           line-height: 1.1; 
       }
       
-      /* 모든 칸 강제 한줄 표시 및 가장 타이트한 너비(1%)로 밀착 */
       .schedule-table th, .schedule-table td { 
           padding: 0.3rem 0.4rem !important; 
-          white-space: nowrap !important; /* 글자 줄바꿈 방지 */
-          width: 1% !important; /* 브라우저가 최소 너비로 맞추도록 유도 */
+          white-space: nowrap !important; 
+          width: 1% !important; 
       }
       
-      /* 오직 '제목' 열(3번째 열)만 너비를 여유롭게 가져가게 설정 */
       .schedule-table th:nth-child(3), .schedule-table td:nth-child(3) {
           width: auto !important;
       }
@@ -212,7 +202,6 @@
         <input type="password" id="loginPw" class="form-control form-control-lg login-input fs-6" placeholder="비밀번호를 입력하세요" onkeypress="handleEnter(event)">
       </div>
       
-      <!-- 자동 로그인 체크박스 -->
       <div class="form-check mb-4 text-start ms-1">
         <input class="form-check-input shadow-sm" type="checkbox" id="autoLoginCheck" style="cursor: pointer;">
         <label class="form-check-label text-secondary fw-semibold" for="autoLoginCheck" style="font-size: 0.85rem; cursor: pointer;">
@@ -247,16 +236,13 @@
 <!-- 3. 메인 애플리케이션 화면 -->
 <div id="mainApp" class="py-4" style="display: none;">
   <div class="container-fluid px-4">
-    <!-- 상단 타이틀 (일반 사용자는 숨김 처리) -->
     <div id="topHeaderArea" class="mb-4 pb-2 border-bottom text-center">
       <h2 class="fw-bold mb-1" style="color: var(--theme-blue);"><i class="bi bi-calendar-week me-2"></i>공개 강연 일정 관리</h2>
       <p class="text-muted mb-0" style="font-size: 0.85rem;">강연 제목과 초대 연사를 손쉽게 관리하세요.</p>
     </div>
 
-    <!-- 공개 강연 일정 목록 뷰 -->
     <div id="talkListView" class="card shadow-sm border-0 mb-4">
       <div class="card-header card-header-custom py-3 d-flex justify-content-between align-items-center">
-        <!-- 봉사 연도 선택 드롭다운 결합 -->
         <div class="d-flex align-items-center gap-2">
             <h5 class="mb-0 fw-semibold"><i class="bi bi-table me-2"></i>공개 강연 계획표</h5>
             <select id="serviceYearSelect" class="form-select form-select-sm shadow-sm border-0 fw-bold ms-2" style="width: auto; border-radius: 6px; cursor: pointer; background-color: rgba(255,255,255,0.9); color: var(--theme-blue);" onchange="changeServiceYear(this.value)">
@@ -269,18 +255,19 @@
       </div>
       <div class="card-body bg-white border-bottom py-3">
         <div class="row g-3 align-items-center">
-          <div class="col-md-6 col-lg-7">
+          <div class="col-md-7 col-lg-7">
+            <!-- [신규 수정] 검색창 (엔터 및 버튼 클릭 시 동작) -->
             <div class="input-group">
-              <span class="input-group-text bg-light border-end-0"><i class="bi bi-search"></i></span>
-              <input type="text" id="searchInput" class="form-control border-start-0 ps-0" placeholder="연설 번호, 제목, 연사, 회중 등 검색 (숫자 입력시 번호로만 검색됨)" onkeyup="renderTable()">
+              <input type="text" id="searchInput" class="form-control ps-3 border-secondary" placeholder="연설 번호, 연사, 제목 등 검색 (단어는 2글자 이상)" onkeypress="if(event.key === 'Enter') executeSearch()">
+              <button class="btn btn-secondary px-3" type="button" onclick="executeSearch()"><i class="bi bi-search"></i> 검색</button>
+              <button class="btn btn-outline-secondary px-3" type="button" onclick="clearSearch()" title="검색 초기화"><i class="bi bi-x-lg"></i></button>
             </div>
           </div>
-          <div class="col-md-6 col-lg-5 d-flex justify-content-md-end justify-content-start align-items-center gap-2 flex-wrap" id="topToolbar">
+          <div class="col-md-5 col-lg-5 d-flex justify-content-md-end justify-content-start align-items-center gap-2 flex-wrap" id="topToolbar">
           </div>
         </div>
       </div>
       <div class="table-responsive table-scroll-container">
-        <!-- 표에 schedule-table 클래스 유지 -->
         <table class="table table-hover table-bordered align-middle mb-0 text-center schedule-table">
           <thead class="bg-white">
             <tr>
@@ -502,12 +489,13 @@
 // 1. 여기에 발급받은 Firebase Config 코드를 꼭 붙여넣으세요!
 // ==========================================
 const firebaseConfig = {
-  apiKey: "AIzaSyApZWpHsA3VyArChMcnGPWNeW4-2LDjX5U",
-  authDomain: "pt-ganghwa.firebaseapp.com",
-  projectId: "pt-ganghwa",
-  storageBucket: "pt-ganghwa.firebasestorage.app",
-  messagingSenderId: "755057910418",
-  appId: "1:755057910418:web:e468987e39dda55bc9fc4b"
+  apiKey: "API_KEY_위치",
+  authDomain: "AUTH_DOMAIN_위치",
+  databaseURL: "DATABASE_URL_위치",
+  projectId: "PROJECT_ID_위치",
+  storageBucket: "STORAGE_BUCKET_위치",
+  messagingSenderId: "MESSAGING_SENDER_ID_위치",
+  appId: "APP_ID_위치"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -600,7 +588,7 @@ function formatDateToISO(dateObj) {
   return `${y}-${m}-${d}`;
 }
 
-// 화면 및 인쇄물에 출력되는 날짜 형태를 'MM월 DD일' 포맷으로 표시
+// 기본 화면/인쇄용 날짜 포맷 (MM월 DD일)
 function formatDisplayDate(dateStr) {
   const d = parseToDateObj(dateStr);
   if (!d) return dateStr;
@@ -658,6 +646,7 @@ function populateYearSelect() {
 
 function changeServiceYear(year) {
     currentServiceYear = parseInt(year);
+    document.getElementById('searchInput').value = ''; // 연도 변경 시 검색어 초기화
     renderTable();
 }
 
@@ -882,7 +871,6 @@ function applyRoleUI() {
       manageHeader.style.display = 'table-cell';
   } else {
       topHeaderArea.style.display = 'none';
-      // [요청 반영] 일반 사용자는 내보내기 버튼 삭제
       topToolbar.innerHTML = `
         <button class="btn btn-dark fw-semibold px-3" onclick="doLogout()"><i class="bi bi-box-arrow-right me-1"></i>로그아웃</button>
       `;
@@ -1133,11 +1121,13 @@ function highlightName(name, isoDateStr) {
   
   let isFutureOrToday = true; 
   if (isoDateStr) {
-    const d = new Date(isoDateStr + "T00:00:00");
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    if (d.getTime() < today.getTime()) {
-      isFutureOrToday = false; 
+    const d = parseToDateObj(isoDateStr);
+    if (d) {
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      if (d.getTime() < today.getTime()) {
+        isFutureOrToday = false; 
+      }
     }
   }
 
@@ -1145,6 +1135,26 @@ function highlightName(name, isoDateStr) {
     return `<span class="badge bg-warning text-dark fw-bold px-2 shadow-sm rounded-pill" style="font-size: 0.9rem; padding: 0.25rem 0.5rem;">${name}</span>`;
   }
   return `<span>${name}</span>`;
+}
+
+// [신규] 명시적으로 검색 버튼을 눌러야만 실행되도록 하는 함수
+function executeSearch() {
+  const searchVal = document.getElementById('searchInput').value.trim();
+  if (searchVal !== '') {
+      const isNumeric = /^\d+$/.test(searchVal);
+      // 문자가 포함된 경우 2글자 이상 입력 검증
+      if (!isNumeric && searchVal.length < 2) {
+          alert('단어 검색은 2글자 이상 입력해주세요.');
+          return;
+      }
+  }
+  renderTable(); 
+}
+
+// [신규] 검색어 초기화 (X 버튼)
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  renderTable();
 }
 
 function renderTable() {
@@ -1168,7 +1178,8 @@ function renderTable() {
     
     displayList = allLectures.filter(item => {
       if (isNumericSearch) {
-        return String(item.outlineNo).includes(search);
+        // [신규] 숫자는 연설 번호와 정확히 일치할 때만 검색
+        return String(item.outlineNo) === search;
       } else {
         const searchableText = (
           (item.title || '') + 
@@ -1184,13 +1195,14 @@ function renderTable() {
       }
     });
 
+    // [신규] 검색 결과는 무조건 최근 날짜부터 오래된 날짜 순(내림차순)으로 정렬
     displayList.sort((a, b) => {
       const dA = parseToDateObj(a.date);
       const dB = parseToDateObj(b.date);
       if (!dA && !dB) return 0;
       if (!dA) return 1;
       if (!dB) return -1;
-      return dA - dB;
+      return dB - dA; 
     });
 
   } else {
@@ -1212,6 +1224,7 @@ function renderTable() {
       }
     });
 
+    // 일반 목록은 과거부터 미래 순(오름차순)으로 정렬
     windowLectures.sort((a, b) => {
       const dA = parseToDateObj(a.date);
       const dB = parseToDateObj(b.date);
@@ -1229,7 +1242,7 @@ function renderTable() {
   displayList.forEach(item => {
       const isPlaceholder = item.originalIndex === -1;
       const isSpecial = !isPlaceholder && !item.outlineNo && item.title;
-      const isThisWeek = (item.date === thisSundayISO);
+      const isThisWeek = (item.date === thisSundayISO && !isSearching);
 
       const tr = document.createElement('tr');
       let rowClasses = [];
@@ -1277,6 +1290,7 @@ function renderTable() {
         }
       }
 
+      // [신규] 검색 중일 때만 연도를 붙여서 보여주고 평상시엔 뺌
       let displayD = isSearching ? formatSearchDisplayDate(item.date) : formatDisplayDate(item.date);
       
       let dateClass = isPlaceholder ? 'text-black-50' : 'text-secondary';
@@ -1468,8 +1482,11 @@ function deleteLecture(index) {
 function exportToPDF() {
   let html = '';
   let chunks = [];
-  for (let i = 0; i < displayList.length; i += 22) {
-      chunks.push(displayList.slice(i, i + 22));
+  // 내보내기 문서용 데이터 추출 (검색 중이라면 검색 결과 출력, 아니면 전체 출력)
+  let exportData = displayList; 
+  
+  for (let i = 0; i < exportData.length; i += 22) {
+      chunks.push(exportData.slice(i, i + 22));
   }
 
   chunks.forEach((chunk, chunkIndex) => {
@@ -1503,6 +1520,7 @@ function exportToPDF() {
 
       html += `
         <tr${trClass}>
+          <!-- [내보내기] 연도 제외한 원래 포맷으로 무조건 출력 -->
           <td class="date-col ${boldClass}">${formatDisplayDate(item.date) || ''}</td>
           <td class="title-col ${boldClass}">${titleHTML}</td>
           <td>${item.speaker || ''}</td>
