@@ -237,16 +237,15 @@
 <!-- 3. 메인 애플리케이션 화면 -->
 <div id="mainApp" class="py-4" style="display: none;">
   <div class="container-fluid px-4">
-    <!-- 상단 타이틀 (일반 사용자는 숨김 처리) -->
+    <!-- 상단 타이틀 -->
     <div id="topHeaderArea" class="mb-4 pb-2 border-bottom text-center">
       <h2 class="fw-bold mb-1" style="color: var(--theme-blue);"><i class="bi bi-calendar-week me-2"></i>공개 강연 일정 관리</h2>
       <p class="text-muted mb-0" style="font-size: 0.85rem;">강연 제목과 초대 연사를 손쉽게 관리하세요.</p>
     </div>
 
-    <!-- 공개 강연 일정 목록 뷰 -->
+    <!-- 목록 뷰 -->
     <div id="talkListView" class="card shadow-sm border-0 mb-4">
       <div class="card-header card-header-custom py-3 d-flex justify-content-between align-items-center">
-        <!-- 봉사 연도 선택 드롭다운 결합 -->
         <div class="d-flex align-items-center gap-2">
             <h5 class="mb-0 fw-semibold"><i class="bi bi-table me-2"></i>공개 강연 계획표</h5>
             <select id="serviceYearSelect" class="form-select form-select-sm shadow-sm border-0 fw-bold ms-2" style="width: auto; border-radius: 6px; cursor: pointer; background-color: rgba(255,255,255,0.9); color: var(--theme-blue);" onchange="changeServiceYear(this.value)">
@@ -272,7 +271,6 @@
         </div>
       </div>
       <div class="table-responsive table-scroll-container">
-        <!-- 표에 schedule-table 클래스 유지 -->
         <table class="table table-hover table-bordered align-middle mb-0 text-center schedule-table">
           <thead class="bg-white">
             <tr>
@@ -375,19 +373,26 @@
   </div>
 </div>
 
-<!-- [신규 수정] 검색 결과 없음 알림 및 빠른 추가 팝업 (디자인 개선) -->
+<!-- [새로운 디자인 반영] 검색 결과 없음 알림 및 빠른 추가 팝업 -->
 <div class="modal fade" id="noResultModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-sm">
     <div class="modal-content border-0 shadow-lg">
       <div class="modal-body text-center p-4">
-        <h6 class="fw-bold mb-2 text-secondary" style="font-size: 0.9rem;">골자 번호 : <span id="nrOutlineNo"></span></h6>
+        <!-- 상단 아이콘 제거 및 골자 번호 문구 변경 -->
+        <h6 class="fw-bold mb-2 text-secondary" style="font-size: 0.95rem;">골자 번호 : <span id="nrOutlineNo"></span></h6>
         <h5 class="fw-bold text-dark mb-4 lh-base" id="nrOutlineTitle" style="word-break: keep-all;"></h5>
-        <div class="p-3 mb-4 rounded-3" style="background-color: #fef2f2; border: 1px solid #fecaca;">
-          <span class="text-danger fw-bold" style="font-size: 0.85rem;">최근 1년 이내에 사용된 적이 없는 연설입니다.<br><br>아래 버튼을 눌러 일정을 추가할 수 있습니다.</span>
+        
+        <!-- 경고 문구 정렬 및 텍스트 수정 -->
+        <div class="p-3 mb-4 rounded-3 d-flex flex-column align-items-center justify-content-center" style="background-color: #fef2f2; border: 1px solid #fecaca; text-align: center;">
+          <span class="text-danger fw-semibold" style="font-size: 0.9rem; line-height: 1.5; word-break: keep-all;">
+            최근 1년 이내에 사용되지 않았습니다.<br>아래 버튼을 눌러 일정을 추가해 주세요.
+          </span>
         </div>
+        
         <div id="nrAdminControls" style="display: none;">
           <button type="button" class="btn btn-theme w-100 fw-bold shadow-sm mb-2" onclick="openModalFromSearch()"><i class="bi bi-calendar-plus me-1"></i>일정 추가하기</button>
         </div>
+        <!-- 닫기 버튼 누르면 초기 화면으로 돌아가도록 data-bs-dismiss 속성 적용 -->
         <button type="button" class="btn btn-light w-100 fw-bold border" data-bs-dismiss="modal">닫기</button>
       </div>
     </div>
@@ -510,14 +515,14 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 // ==========================================
-// 전역 변수 선언
+// 전역 변수 선언 (오류 방지를 위해 최상단 배치)
 // ==========================================
 var currentUserRole = null; 
 var currentUserName = "";
 var modal;
 var resetModal;
 var outlineListModal;
-var noResultModal;
+var noResultModal; 
 
 var lectures = [];
 var displayList = [];
@@ -547,7 +552,7 @@ const defaultOutlineTitles = {
   51: "진리가 당신의 생활을 변화시키고 있는가?", 52: "당신의 하느님은 누구인가?", 53: "당신의 생각은 하느님의 생각과 일치한가?", 54: "하느님과 그분의 약속에 대한 믿음을 길러 나가십시오", 55: "하느님 앞에서 어떻게 좋은 이름을 얻을 수 있는가?", 
   56: "우리가 신뢰할 수 있는 지도자는 누구인가?", 57: "박해를 견디는 일", 58: "누가 그리스도의 참제자인가?", 60: "당신의 삶의 목적은 무엇인가?", 
   61: "당신은 누구의 약속을 신뢰하는가?", 62: "어디에서 진정한 희망을 발견할 수 있는가?", 63: "진리를 찾을 수 있습니까?", 64: "당신은 ‘쾌락을 사랑하는 사람’이 될 것인가, ‘하느님을 사랑하는 사람’이 될 것인가?", 65: "분노가 가득한 세상에서 평화를 이루는 방법", 
-  66: "당신은 수확하는 일에 참여할 것인가?", 67: "여호와의 말씀과 그분의 창조물에 대해 묵상하십시오", 68: "“계속 ··· 서로 기꺼이 용서하십시오”", 69: "왜 자기희생적인 사랑을 나타내야 하는가?", 70: "왜 하느님을 신뢰해야 하는가?", 
+  66: "당신은 수확하는 일에 참여할 가?", 67: "여호와의 말씀과 그분의 창조물에 대해 묵상하십시오", 68: "“계속 ··· 서로 기꺼이 용서하십시오”", 69: "왜 자기희생적인 사랑을 나타내야 하는가?", 70: "왜 하느님을 신뢰해야 하는가?", 
   71: "“깨어 있으십시오”—왜 그리고 어떻게?", 72: "사랑—참그리스도인 회중을 알아볼 수 있는 표", 73: "“지혜의 마음”을 얻으십시오", 74: "여호와께서는 우리를 살펴보고 계신다", 75: "개인 생활에서 여호와의 통치권을 지지하십시오", 
   76: "오늘날의 문제들에 대처하는 데 성서 원칙이 도움이 되는가?", 77: "“후대에 힘쓰십시오\"", 78: "기쁜 마음으로 여호와를 섬기십시오", 79: "당신은 하느님의 친구가 될 것인가, 세상의 친구가 될 것인가?", 80: "과학과 성경—당신은 어느 쪽에 희망을 두는가?", 
   81: "누가 제자 삼는 일을 할 자격이 있는가?", 83: "그리스도인은 십계명을 지켜야 하는가?", 84: "당신은 이 세계의 운명을 피할 것인가?", 85: "폭력적인 세상에서 전해지고 있는 좋은 소식", 
@@ -753,6 +758,13 @@ document.addEventListener("DOMContentLoaded", () => {
   outlineListModal = new bootstrap.Modal(document.getElementById('outlineListModal'));
   noResultModal = new bootstrap.Modal(document.getElementById('noResultModal')); 
   
+  // [신규 수정] 팝업창이 닫힐 때 검색이 초기화되며 메인화면으로 돌아가도록 이벤트 리스너 추가
+  document.getElementById('noResultModal').addEventListener('hidden.bs.modal', function () {
+    if (isSearchModeActive) {
+      clearSearch();
+    }
+  });
+
   try {
     const savedRole = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
     const savedName = localStorage.getItem('userName') || sessionStorage.getItem('userName');
@@ -1226,8 +1238,8 @@ function showNoResultModal(num, title) {
 
 function openModalFromSearch() {
     noResultModal.hide();
-    clearSearch(); 
     
+    // clearSearch는 hidden 이벤트 리스너가 처리하므로 여기서는 바로 띄웁니다.
     setTimeout(() => {
         openModal(-1, '');
         document.getElementById('inputOutlineNo').value = searchTargetNo;
