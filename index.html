@@ -243,7 +243,7 @@
       <p class="text-muted mb-0" style="font-size: 0.85rem;">강연 제목과 초대 연사를 손쉽게 관리하세요.</p>
     </div>
 
-    <!-- 목록 뷰 -->
+    <!-- 공개 강연 일정 목록 뷰 -->
     <div id="talkListView" class="card shadow-sm border-0 mb-4">
       <div class="card-header card-header-custom py-3 d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center gap-2">
@@ -373,6 +373,28 @@
   </div>
 </div>
 
+<!-- [신규] 검색 결과 없음 알림 및 빠른 추가 팝업 -->
+<div class="modal fade" id="noResultModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-body text-center p-4">
+        <div class="mb-3">
+          <i class="bi bi-search text-secondary" style="font-size: 2rem; opacity: 0.5;"></i>
+        </div>
+        <h5 class="fw-bold mb-2" style="color: var(--theme-blue);">제 <span id="nrOutlineNo"></span> 호</h5>
+        <p class="fw-bold text-dark mb-3 lh-sm" id="nrOutlineTitle" style="font-size: 1.05rem; word-break: keep-all;"></p>
+        <div class="p-3 mb-4 rounded-3" style="background-color: #fef2f2; border: 1px solid #fecaca;">
+          <span class="text-danger fw-bold" style="font-size: 0.85rem;"><i class="bi bi-info-circle-fill me-1"></i>최근 1년 이내에<br>사용된 적이 없는 연설입니다.</span>
+        </div>
+        <div id="nrAdminControls" style="display: none;">
+          <button type="button" class="btn btn-theme w-100 fw-bold shadow-sm mb-2" onclick="openModalFromSearch()"><i class="bi bi-calendar-plus me-1"></i>일정 추가하기</button>
+        </div>
+        <button type="button" class="btn btn-light w-100 fw-bold border" data-bs-dismiss="modal">닫기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="resetModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-sm">
     <div class="modal-content">
@@ -489,13 +511,14 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 // ==========================================
-// 전역 변수 선언 (오류 방지를 위해 최상단 배치)
+// 전역 변수 선언
 // ==========================================
 var currentUserRole = null; 
 var currentUserName = "";
 var modal;
 var resetModal;
 var outlineListModal;
+var noResultModal; // [신규] 결과 없음 모달
 
 var lectures = [];
 var displayList = [];
@@ -508,6 +531,7 @@ var audioCtx;
 var currentServiceYear = new Date().getMonth() >= 8 ? new Date().getFullYear() : new Date().getFullYear() - 1;
 var isSearchModeActive = false;
 var currentSearchVal = '';
+var searchTargetNo = ''; // [신규] 추가용 임시번호
 
 const defaultBrotherNames = ["강용호", "김가우", "김대성", "김선정", "김윤건", "김현유", "민경태", "박남섭", "박수현", "박인규", "서금모", "서성남", "서영석", "은지상", "이석재", "이정로", "이찬호", "임동수", "장세관", "정용기", "조건희", "조오진", "주범서", "지역환", "차재승", "한일봉"];
 const defaultOutlineTitles = {
@@ -572,7 +596,7 @@ try {
   console.error("Firebase 초기화 에러 (설정값을 확인하세요):", e);
 }
 
-// [방어코드] 파이어베이스에서 읽어온 데이터가 객체 형태로 꼬여있어도 강제로 배열로 안전하게 복구
+// 파이어베이스 데이터 안전하게 배열 변환
 function safeArray(obj) {
   if (!obj) return [];
   if (Array.isArray(obj)) return obj;
@@ -716,10 +740,7 @@ if (database) {
 }
 
 function saveToFirebase() {
-  if (!database) {
-    alert("Firebase 데이터베이스에 연결되어 있지 않아 저장할 수 없습니다.");
-    return;
-  }
+  if (!database) return;
   database.ref('public_talks_app').set({
     lectures: lectures,
     outlineTitles: outlineTitles,
@@ -734,6 +755,7 @@ document.addEventListener("DOMContentLoaded", () => {
   modal = new bootstrap.Modal(document.getElementById('lectureModal'));
   resetModal = new bootstrap.Modal(document.getElementById('resetModal'));
   outlineListModal = new bootstrap.Modal(document.getElementById('outlineListModal'));
+  noResultModal = new bootstrap.Modal(document.getElementById('noResultModal')); // 신규 모달 연결
   
   try {
     const savedRole = localStorage.getItem('userRole') || sessionStorage.getItem('userRole');
@@ -767,7 +789,7 @@ function initAudioContext() {
     if (audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume();
     }
-  } catch(err) { console.log("Audio 무시됨", err); }
+  } catch(err) {}
 }
 
 function playNotificationSound() {
@@ -789,7 +811,7 @@ function playNotificationSound() {
       
       osc.start();
       osc.stop(audioCtx.currentTime + 0.5);
-  } catch(e) { console.log("사운드 재생 실패:", e); }
+  } catch(e) {}
 }
 
 function handleEnter(e) { if (e.key === 'Enter' || e.keyCode === 13) { doLogin(); } }
@@ -860,8 +882,7 @@ function doLogin() {
       }
     }, loadingDelay);
   } catch (err) {
-    console.error("로그인 실행 에러:", err);
-    alert("오류가 발생했습니다. 브라우저 캐시를 삭제하거나 강력 새로고침을 해주세요.");
+    alert("오류가 발생했습니다. 브라우저를 새로고침 해주세요.");
   }
 }
 
@@ -1171,6 +1192,7 @@ function highlightName(name, isoDateStr) {
   return `<span>${name}</span>`;
 }
 
+// [검색 모드 스마트 기능]
 function executeSearch() {
   const searchVal = document.getElementById('searchInput').value.trim();
   if (searchVal !== '') {
@@ -1181,11 +1203,45 @@ function executeSearch() {
       }
       isSearchModeActive = true;
       currentSearchVal = searchVal.toLowerCase();
+      
+      // 먼저 테이블을 그리고
+      renderTable();
+      
+      // 결과가 아무것도 없다면 팝업 띄우기 (숫자 검색일 때)
+      if (isNumeric && displayList.length === 0) {
+          const num = parseInt(searchVal, 10);
+          if (outlineTitles[num]) {
+              showNoResultModal(num, outlineTitles[num]);
+          } else {
+              alert("등록되지 않은 강연 번호입니다. [전체 공개 강연 목록]에서 번호를 확인해주세요.");
+          }
+      }
   } else {
       isSearchModeActive = false;
       currentSearchVal = '';
+      renderTable();
   }
-  renderTable(); 
+}
+
+// [신규] 검색 결과 없음 모달 띄우기
+function showNoResultModal(num, title) {
+    searchTargetNo = num;
+    document.getElementById('nrOutlineNo').innerText = num;
+    document.getElementById('nrOutlineTitle').innerText = title;
+    document.getElementById('nrAdminControls').style.display = (currentUserRole === 'ADMIN') ? 'block' : 'none';
+    noResultModal.show();
+}
+
+// [신규] 팝업에서 바로 일정 추가창 열기
+function openModalFromSearch() {
+    noResultModal.hide();
+    clearSearch(); 
+    
+    setTimeout(() => {
+        openModal(-1, '');
+        document.getElementById('inputOutlineNo').value = searchTargetNo;
+        handleOutlineInput();
+    }, 350);
 }
 
 function clearSearch() {
@@ -1211,6 +1267,7 @@ function renderTable() {
   if (isSearchModeActive) {
     let allLectures = lectures.map((l, idx) => ({ ...l, originalIndex: idx }));
     
+    // 최근 1년 계산
     const oneYearAgo = new Date();
     oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
     oneYearAgo.setHours(0,0,0,0);
@@ -1236,6 +1293,7 @@ function renderTable() {
       }
     });
 
+    // 최신 날짜 순(내림차순) 정렬
     displayList.sort((a, b) => {
       const dA = parseToDateObj(a.date);
       const dB = parseToDateObj(b.date);
@@ -1365,9 +1423,9 @@ function executeReset() {
   resetModal.hide();
 }
 
-function handleDateInput() { checkIfSunday(); checkRecentUsage(); }
+function handleDateInput() { checkIfSunday(); }
 
-function handleOutlineInput() { autoFillTitle(); checkRecentUsage(); checkSuspendedUsage(); }
+function handleOutlineInput() { autoFillTitle(); checkSuspendedUsage(); }
 
 function checkSuspendedUsage() {
     const num = parseInt(document.getElementById('inputOutlineNo').value, 10);
@@ -1394,43 +1452,6 @@ function autoFillTitle() {
     titleHelp.style.display = 'block';
   } else {
     titleHelp.style.display = 'none';
-  }
-}
-
-function checkRecentUsage() {
-  const num = document.getElementById('inputOutlineNo').value;
-  const warningEl = document.getElementById('recentWarning');
-  const currentIndex = document.getElementById('editIndex').value;
-  const targetDateStr = document.getElementById('inputDate').value.trim();
-  if (!num) { warningEl.style.display = 'none'; return; }
-
-  let baseDate = parseToDateObj(targetDateStr);
-  if (!baseDate) baseDate = new Date();
-
-  let mostRecentDateObj = null;
-  let mostRecentDateStr = "";
-
-  for (let i = 0; i < lectures.length; i++) {
-    if (i.toString() === currentIndex) continue;
-    if (String(lectures[i].outlineNo) === String(num) && lectures[i].date) {
-      const otherDate = parseToDateObj(lectures[i].date);
-      if (otherDate) {
-        const diffDays = Math.abs(baseDate - otherDate) / (1000 * 60 * 60 * 24);
-        if (diffDays <= 365) {
-          if (!mostRecentDateObj || otherDate > mostRecentDateObj) {
-            mostRecentDateObj = otherDate;
-            mostRecentDateStr = lectures[i].date;
-          }
-        }
-      }
-    }
-  }
-
-  if (mostRecentDateObj) {
-    warningEl.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-1"></i>최근 1년 이내 (${formatSearchDisplayDate(mostRecentDateStr)})에 사용된 연설 입니다.`;
-    warningEl.style.display = 'block';
-  } else {
-    warningEl.style.display = 'none';
   }
 }
 
@@ -1471,8 +1492,10 @@ function openModal(index = -1, dateStr = '') {
     document.getElementById('modalTitle').innerText = '강연 일정 등록';
   }
   
-  document.getElementById('inputDate').value = targetDate;
-  checkIfSunday(); 
+  if(targetDate) {
+     document.getElementById('inputDate').value = targetDate;
+     checkIfSunday(); 
+  }
   modal.show();
 }
 
