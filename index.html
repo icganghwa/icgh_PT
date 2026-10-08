@@ -70,7 +70,7 @@
     }
 
     /* =========================================
-       [수정됨] 인쇄 및 PDF 내보내기 겹침 방지 스타일
+       [완벽 1줄 고정] 인쇄 및 PDF 내보내기 전용 스타일
        ========================================= */
     #printOverlay { 
       display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
@@ -80,11 +80,16 @@
     body.printing #printOverlay { display: block; }
 
     #printContent { 
-      width: 210mm; min-width: 794px; /* 스마트폰에서도 축소되지 않도록 PC 사이즈 강제 고정 */
-      margin: 20px auto; background-color: #fff; 
-      box-shadow: 0 4px 10px rgba(0,0,0,0.15); padding: 25mm 12mm 15mm 12mm; 
-      color: #000; font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; /* iOS 최적화 서체 추가 */
-      letter-spacing: normal;
+      /* 스마트폰 화면 너비에 상관없이 1024px 가상 캔버스를 유지하여 글자 공간 완벽 확보 */
+      width: 1024px; 
+      max-width: none;
+      box-sizing: border-box;
+      margin: 20px auto; 
+      background-color: #fff; 
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
+      padding: 25mm 12mm 15mm 12mm; 
+      color: #000; 
+      font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
     }
     
     #printContent h2 { text-align: center; margin-bottom: 25px; font-size: 16pt; font-weight: bold; color: #333; }
@@ -94,10 +99,12 @@
     #printContent th { background-color: #ffffff !important; font-weight: bold; font-size: 9.5pt; padding: 4px 1px; height: 36px !important; }
     #printContent tr { height: 36px !important; page-break-inside: avoid; } 
     
-    /* 스마트폰 날짜 겹침 방지용 중요 코드 */
-    #printContent .date-col { font-size: 8.5pt; white-space: nowrap; letter-spacing: 0px !important; }
+    /* 날짜 칸 겹침 방지 보강 */
+    #printContent .date-col { font-size: 8.5pt; white-space: nowrap; letter-spacing: -0.5px; }
     
+    /* [요청 반영] 제목은 절대 줄바꿈 되지 않고(nowrap) 무조건 한 줄로만 깔끔하게 표시 */
     #printContent .title-col { text-align: center; font-weight: normal; font-size: 10.5pt; letter-spacing: -0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
     #printContent .special-bold { font-weight: bold !important; color: #000 !important; }
     #printContent .special-event td { background-color: #ffffff !important; }
     #printContent .page-break { page-break-after: always; }
@@ -108,9 +115,10 @@
       body.printing #printOverlay { position: static; overflow: visible; display: block !important; background-color: #fff; }
       .print-controls { display: none !important; }
       
+      /* PC의 실제 프린터로 인쇄할 때는 용지 폭 100%에 맞춰 자연스럽게 렌더링 */
       #printContent { 
-        padding: 0 !important; margin: 0 auto !important; max-width: 100% !important; box-shadow: none !important; 
-        width: 99% !important; min-width: auto !important; /* PC 실제 인쇄 시에는 화면에 맞춤 */
+        padding: 0 !important; margin: 0 auto !important; max-width: none !important; box-shadow: none !important; 
+        width: 100% !important; 
       }
       #printContent th, #printContent td { border: 1px solid #000 !important; }
     }
@@ -389,8 +397,7 @@
         <h5 class="fw-bold text-dark mb-4 lh-base" id="nrOutlineTitle" style="word-break: keep-all;"></h5>
         
         <div class="p-3 mb-4 rounded-3 d-flex flex-column align-items-center justify-content-center" style="background-color: #fef2f2; border: 1px solid #fecaca; text-align: center;">
-          <span id="nrMessageText" class="text-danger fw-semibold" style="font-size: 0.9rem; line-height: 1.5; word-break: keep-all;">
-          </span>
+          <span id="nrMessageText" class="text-danger fw-semibold" style="font-size: 0.9rem; line-height: 1.5; word-break: keep-all;"></span>
         </div>
         
         <div id="nrAdminControls" style="display: none;">
@@ -518,7 +525,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 // ==========================================
-// 전역 변수 선언 (오류 방지를 위해 최상단 배치)
+// 전역 변수 선언
 // ==========================================
 var currentUserRole = null; 
 var currentUserName = "";
@@ -1230,7 +1237,6 @@ function executeSearch() {
   }
 }
 
-// [신규 수정] 사용 중지 여부에 따라 문구 변경 (2026년 5월 광고 참고)
 function showNoResultModal(num, title) {
     searchTargetNo = num;
     document.getElementById('nrOutlineNo').innerText = num;
@@ -1241,11 +1247,9 @@ function showNoResultModal(num, title) {
     const adminControls = document.getElementById('nrAdminControls');
 
     if (isSuspended) {
-        // 사용 중지된 연설일 때의 안내
         messageEl.innerHTML = "사용하지 않는 공개 강연 골자입니다.<br>(2026년 5월 광고 참고)";
-        adminControls.style.display = 'none'; // 일정 추가 버튼 숨김
+        adminControls.style.display = 'none'; 
     } else {
-        // 사용 가능한 연설일 때의 정상 안내
         messageEl.innerHTML = "최근 1년 이내에 사용되지 않았습니다.<br>아래 버튼을 눌러 일정을 추가해 주세요.";
         adminControls.style.display = (currentUserRole === 'ADMIN') ? 'block' : 'none';
     }
@@ -1664,8 +1668,9 @@ function closePrintView() {
 
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   
-  if (isStandalone && typeof html2pdf !== 'undefined') {
+  if ((isStandalone || isMobile) && typeof html2pdf !== 'undefined') {
     const element = document.getElementById('printContent');
     const controls = document.getElementById('printControlsBar');
     
@@ -1675,11 +1680,11 @@ function triggerPrint() {
       margin: [10, 5, 10, 5], 
       filename: '공개강연계획표.pdf',
       image: { type: 'jpeg', quality: 1 },
-      html2canvas: { scale: 2, useCORS: true, windowWidth: 800 }, 
+      html2canvas: { scale: 2, useCORS: true, windowWidth: 1024 }, 
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
     
-    alert("앱 모드에서는 직접 인쇄가 제한되어 PDF 파일을 생성합니다. 생성 후 뜨는 공유 창에서 프린터로 보내거나 카톡으로 저장하세요.");
+    alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 프린터로 보내거나 저장하세요.");
     
     html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
       controls.style.display = 'flex'; 
