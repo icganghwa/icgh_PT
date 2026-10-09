@@ -1658,6 +1658,7 @@ function closePrintView() {
   document.getElementById('printContent').innerHTML = '';
 }
 
+// PC 인쇄 기능은 100% 철통 보존하고, 스마트폰 우측 잘림/중앙 정렬/페이지 쏠림을 완벽하게 해결한 최종 코드
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1670,7 +1671,7 @@ function triggerPrint() {
     window.scrollTo(0, 0);
     controls.style.display = 'none';
     
-    // 스마트폰 전용 강제 스타일 (표 중앙 정렬 및 우측 잘림 완벽 차단)
+    // 스마트폰 전용 강제 스타일 (950px 최적화, 모든 열 포함, 완벽한 중앙 정렬)
     const mobileStyle = document.createElement('style');
     mobileStyle.id = 'tempMobilePrintStyle';
     mobileStyle.innerHTML = `
@@ -1679,16 +1680,17 @@ function triggerPrint() {
         position: static !important;
       }
       #printContent {
-        width: 1200px !important;
-        max-width: 1200px !important;
+        width: 950px !important;
+        max-width: 950px !important;
         margin: 0 auto !important;
         box-sizing: border-box !important;
       }
-      /* 표 자체를 1200px로 강제 확장하고 정중앙에 배치하여 우측 쏠림/잘림 원천 방지 */
+      /* 표 전체가 950px 공간 안에 꽉 차게 들어가며 모든 열이 잘리지 않도록 설정 */
       #printContent table {
-        width: 1200px !important;
-        max-width: 1200px !important;
+        width: 100% !important;
+        max-width: 100% !important;
         margin: 0 auto !important;
+        table-layout: auto !important;
       }
       #printContent .date-col {
         font-family: Arial, sans-serif !important;
@@ -1714,8 +1716,8 @@ function triggerPrint() {
       html2canvas: { 
         scale: 2, 
         useCORS: true, 
-        windowWidth: 1200, // 캡처 시야각 1200px 고정
-        width: 1200,
+        windowWidth: 950, // 렌더링 시야각을 950px로 맞춰 우측 잘림 원천 봉쇄
+        width: 950,
         scrollX: 0,
         scrollY: 0
       }, 
