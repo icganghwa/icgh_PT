@@ -1693,10 +1693,13 @@ function triggerPrint() {
     dateCols.forEach(col => {
       col.dataset.origFont = col.style.fontFamily;
       col.dataset.origSpacing = col.style.letterSpacing;
+      col.dataset.origWhiteSpace = col.style.whiteSpace; // [수정됨] 기존 줄바꿈 속성 백업
+      
       // iOS에서 숫자 폭을 지멋대로 렌더링하는 버그를 피하기 위해, 
       // 숫자 폭이 완벽하게 일정한 'Arial' 폰트로 1초간 강제 변경합니다.
       col.style.fontFamily = 'Arial, sans-serif';
       col.style.letterSpacing = '0px';
+      col.style.whiteSpace = 'nowrap'; // [수정됨] "11\n월 01일" 처럼 날짜가 두 줄로 깨지는 현상 원천 차단
     });
     
     // 다음장 제목이 끌려오지 않게 PDF 강제 분할 명령(html2pdf__page-break)을 주입합니다.
@@ -1716,7 +1719,8 @@ function triggerPrint() {
         scrollX: 0,
         scrollY: 0
       }, 
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'], avoid: 'tr' } // [수정됨] 표의 행(tr) 중간이 잘리면서 다음 페이지로 넘어가는 현상 완벽 방지
     };
     
     alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 파일로 저장하세요.");
@@ -1732,6 +1736,7 @@ function triggerPrint() {
       dateCols.forEach(col => {
         col.style.fontFamily = col.dataset.origFont || '';
         col.style.letterSpacing = col.dataset.origSpacing || '';
+        col.style.whiteSpace = col.dataset.origWhiteSpace || ''; // [수정됨] 줄바꿈 속성 원상 복구
       });
       pageBreaks.forEach(pb => pb.classList.remove('html2pdf__page-break'));
       
@@ -1758,6 +1763,7 @@ function triggerPrint() {
       dateCols.forEach(col => {
         col.style.fontFamily = col.dataset.origFont || '';
         col.style.letterSpacing = col.dataset.origSpacing || '';
+        col.style.whiteSpace = col.dataset.origWhiteSpace || ''; // [수정됨] 줄바꿈 속성 원상 복구
       });
       pageBreaks.forEach(pb => pb.classList.remove('html2pdf__page-break'));
       
