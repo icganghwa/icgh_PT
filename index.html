@@ -1658,7 +1658,7 @@ function closePrintView() {
   document.getElementById('printContent').innerHTML = '';
 }
 
-// PC 인쇄 기능은 100% 보존하고, 스마트폰 우측 쏠림 및 하단 끌림만 해결한 최종 캡처 로직
+// PC 인쇄 기능은 100% 보존하고, 스마트폰 빈화면/쏠림/하단끌림 에러를 모두 잡은 최종 코드
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1674,38 +1674,34 @@ function triggerPrint() {
     controls.style.display = 'none';
     
     // 2. PC 원본 디자인 속성 백업 (캡처 후 완벽 원상복구용)
-    const originalPosition = element.style.position;
-    const originalLeft = element.style.left;
-    const originalTop = element.style.top;
     const originalWidth = element.style.width;
     const originalMaxWidth = element.style.maxWidth;
     const originalPadding = element.style.padding;
     const originalMargin = element.style.margin;
     const originalBoxShadow = element.style.boxShadow;
     const originalOverflow = overlay.style.overflow;
+    const originalOverlayPosition = overlay.style.position;
     
-    // 3. [우측 쏠림 완벽 해결] 위치를 강제로 (0,0)으로 고정하고 외부 여백을 없앰
+    // 3. [빈 화면 및 우측 쏠림 완벽 해결] 
+    // position:absolute(빈화면 원인)를 빼고, 대신 부모(overlay)의 제한을 풀어 전체가 정상 캡처되게 함
     overlay.style.overflow = 'visible';
-    element.style.position = 'absolute';
-    element.style.left = '0px';
-    element.style.top = '0px';
-    element.style.margin = '0px';
+    overlay.style.position = 'static'; 
+    element.style.margin = '0px'; // auto 마진을 없애 우측 쏠림 원천 차단
     
     // 4. [하단 끌림 완벽 해결] A4 사이즈(794px) 고정 및 내부 여백으로만 간격 조정
     element.style.width = '794px';
     element.style.maxWidth = '794px';
-    element.style.padding = '15mm 10mm'; // PDF 엔진 대신 표 내부에 여백을 줘서 쏠림 원천 차단
+    element.style.padding = '15mm 10mm'; 
     element.style.boxShadow = 'none';
 
     const opt = {
-      margin: 0, // [핵심] pdf 자체 여백을 0으로 만들어 캡처 엔진의 계산 오류(우측 쏠림) 방지
+      margin: 0, // PDF 자체 여백을 0으로 만들어 캡처 엔진의 계산 오류 방지
       filename: '공개강연계획표.pdf',
       image: { type: 'jpeg', quality: 1 },
       html2canvas: { 
         scale: 2, 
         useCORS: true, 
-        windowWidth: 794,
-        width: 794,
+        windowWidth: 794, // 강제 너비 고정으로 잘림 방지
         scrollX: 0,
         scrollY: 0
       }, 
@@ -1717,15 +1713,13 @@ function triggerPrint() {
     
     html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
       // 5. 캡처 완료 즉시 모든 속성을 원래의 완벽한 PC 상태로 100% 복구
-      element.style.position = originalPosition;
-      element.style.left = originalLeft;
-      element.style.top = originalTop;
       element.style.width = originalWidth;
       element.style.maxWidth = originalMaxWidth;
       element.style.padding = originalPadding;
       element.style.margin = originalMargin;
       element.style.boxShadow = originalBoxShadow;
       overlay.style.overflow = originalOverflow;
+      overlay.style.position = originalOverlayPosition;
       controls.style.display = 'flex'; 
       
       const file = new File([pdfBlob], '공개강연계획표.pdf', { type: 'application/pdf' });
@@ -1740,19 +1734,17 @@ function triggerPrint() {
       }
     }).catch(function() {
       // 에러 발생 시에도 화면 완벽 복구
-      element.style.position = originalPosition;
-      element.style.left = originalLeft;
-      element.style.top = originalTop;
       element.style.width = originalWidth;
       element.style.maxWidth = originalMaxWidth;
       element.style.padding = originalPadding;
       element.style.margin = originalMargin;
       element.style.boxShadow = originalBoxShadow;
       overlay.style.overflow = originalOverflow;
+      overlay.style.position = originalOverlayPosition;
       controls.style.display = 'flex'; 
     });
   } else {
-    // PC에서는 스크립트의 간섭을 일절 받지 않고 브라우저 순정 인쇄 기능만 작동합니다!
+    // PC에서는 스크립트의 간섭을 일절 받지 않고 브라우저 순정 인쇄 기능만 작동합니다! (절대 건드리지 않음)
     window.print();
   }
 }
