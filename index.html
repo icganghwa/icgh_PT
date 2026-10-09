@@ -1658,72 +1658,67 @@ function closePrintView() {
   document.getElementById('printContent').innerHTML = '';
 }
 
-// PC 인쇄 기능은 100% 철통 보존하고, 스마트폰 에러를 복사본(Clone) 생성 방식으로 완벽 차단한 최종 코드
+// PC 인쇄 기능은 100% 철통 보존하고, 스마트폰 하얀 화면/에러를 가상 공간(onclone) 방식으로 완벽 차단한 최종 코드
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   
   if ((isStandalone || isMobile) && typeof html2pdf !== 'undefined') {
-    const originalElement = document.getElementById('printContent');
+    const element = document.getElementById('printContent');
     const controls = document.getElementById('printControlsBar');
     
     controls.style.display = 'none';
     
-    // [핵심 해결책] 스마트폰 화면을 직접 변형하면 하얀 화면이나 짤림 에러가 발생하므로,
-    // 원본은 그대로 두고 'PDF 캡처 전용 복사본(Clone)'을 몰래 생성합니다.
-    const clone = originalElement.cloneNode(true);
-    
-    // 복사본을 화면 맨 뒤(z-index: -1)에 숨기고, 넓이를 PC 사이즈(1024px)로 쫙 폅니다. (우측 잘림 완벽 차단)
-    clone.style.position = 'absolute';
-    clone.style.top = '0px';
-    clone.style.left = '0px';
-    clone.style.width = '1024px';
-    clone.style.maxWidth = '1024px';
-    clone.style.padding = '0px';
-    clone.style.margin = '0px';
-    clone.style.backgroundColor = '#ffffff';
-    clone.style.zIndex = '-1';
-    clone.id = 'printContentClone'; // 복사본 구분을 위한 ID 부여
-    
-    // [날짜 겹침 완벽 해결] 복사본의 날짜 글자 간격 버그(iOS)를 방지하기 위해 자간을 정상(normal)으로 초기화
-    const dateCols = clone.querySelectorAll('.date-col');
-    dateCols.forEach(col => {
-      col.style.letterSpacing = 'normal';
-    });
-    
-    // [다음장 끌림 완벽 해결] 복사본의 페이지 나누기 요소에 html2pdf 전용 강제 분할 명령 주입
-    const pageBreaks = clone.querySelectorAll('.page-break');
-    pageBreaks.forEach(pb => {
-      pb.classList.add('html2pdf__page-break');
-    });
-    
-    // 완성된 복사본을 문서에 잠시 숨겨서 추가
-    document.body.appendChild(clone);
-    
-    // PDF 변환 옵션 세팅
     const opt = {
-      margin: [15, 10, 15, 10], // 상하좌우 여백을 균일하게 확보
+      margin: [15, 10, 15, 10], // 상하 15mm, 좌우 10mm 균일한 여백 확보
       filename: '공개강연계획표.pdf',
       image: { type: 'jpeg', quality: 1 },
       html2canvas: { 
         scale: 2, 
         useCORS: true, 
-        windowWidth: 1024, // 캡처 카메라 렌즈 크기를 1024px로 맞춰서 잘림 원천 차단
-        width: 1024,
-        scrollY: 0,
-        scrollX: 0
+        windowWidth: 1024, // 캡처 렌즈 크기를 PC 사이즈로 맞춰서 오른쪽 잘림 원천 차단
+        
+        // [핵심 해결책] 실제 스마트폰 화면은 절대 건드리지 않습니다! (하얀 화면 원천 차단)
+        // 오직 PDF 변환기 내부에 생성된 가상의 복사본(clonedDoc)만 조작하여 사진을 찍습니다.
+        onclone: function(clonedDoc) {
+          const clonedOverlay = clonedDoc.getElementById('printOverlay');
+          const clonedElement = clonedDoc.getElementById('printContent');
+          
+          if(clonedOverlay) {
+              clonedOverlay.style.position = 'absolute';
+              clonedOverlay.style.overflow = 'visible';
+          }
+          
+          if(clonedElement) {
+              // 가상 공간 안에서만 표를 넓게 펼침
+              clonedElement.style.width = '1024px';
+              clonedElement.style.maxWidth = '1024px';
+              clonedElement.style.margin = '0px';
+              clonedElement.style.padding = '0px';
+              clonedElement.style.boxShadow = 'none';
+              
+              // [날짜 겹침 완벽 해결] 날짜 글자 간격 버그 방지를 위해 자간을 초기화하고 특수 공백 삽입
+              const dateCols = clonedElement.querySelectorAll('.date-col');
+              dateCols.forEach(col => {
+                col.style.letterSpacing = 'normal';
+                col.innerHTML = col.innerHTML.replace(/ /g, '&nbsp;'); 
+              });
+              
+              // [다음장 끌림 완벽 해결] 페이지 끝마다 강제 컷팅 명령 삽입
+              const pageBreaks = clonedElement.querySelectorAll('.page-break');
+              pageBreaks.forEach(pb => {
+                pb.classList.add('html2pdf__page-break');
+              });
+          }
+        }
       }, 
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'] } // 강제 분할선 작동
+      pagebreak: { mode: ['css', 'legacy'] }
     };
     
     alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 파일로 저장하세요.");
     
-    // 화면에 보이는 원본 대신, 뒤에 숨겨둔 완벽한 복사본(clone)을 사진 찍음
-    html2pdf().set(opt).from(clone).outputPdf('blob').then(function(pdfBlob) {
-      
-      // 캡처가 끝나면 복사본을 삭제하고 버튼을 다시 표시
-      document.body.removeChild(clone);
+    html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
       controls.style.display = 'flex'; 
       
       const file = new File([pdfBlob], '공개강연계획표.pdf', { type: 'application/pdf' });
@@ -1734,16 +1729,15 @@ function triggerPrint() {
           text: '강화 회중 공개강연 계획표 파일입니다.'
         }).catch((error) => console.log('공유 취소됨', error));
       } else {
-        html2pdf().set(opt).from(clone).save();
+        html2pdf().set(opt).from(element).save();
       }
-    }).catch(function() {
-      // 혹시라도 에러가 나면 복사본 찌꺼기 삭제
-      document.body.removeChild(clone);
+    }).catch(function(err) {
       controls.style.display = 'flex'; 
+      alert("PDF 생성 중 일시적인 오류가 발생했습니다. 다시 시도해주세요.");
     });
     
   } else {
-    // [PC 내보내기 절대 보호] PC에서는 이 자바스크립트가 무시되며, 브라우저 순정 인쇄 기능만 안전하게 작동합니다!
+    // [PC 내보내기 절대 보호] PC에서는 이 자바스크립트가 무시되며, 순정 인쇄 기능만 안전하게 작동합니다!
     window.print();
   }
 }
