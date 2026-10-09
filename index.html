@@ -69,7 +69,7 @@
       }
     }
 
-  /* =========================================
+ /* =========================================
        [완벽 복구 및 최적화] 인쇄 및 PDF 내보내기 전용 스타일 
        ========================================= */
     #printOverlay { 
@@ -94,16 +94,15 @@
     #printContent tr { height: 36px !important; page-break-inside: avoid; } 
     
     /* 스마트폰 날짜 겹침 방지 및 너비 안정화 */
-    #printContent .date-col { font-size: 8.5pt; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    #printContent .date-col { font-size: 8.5pt; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: 0px !important; }
     
-    /* [요청 반영] 공간을 확보하여 폰트를 10pt로 살짝 키움 / 한줄 고정 유지 */
-    #printContent .title-col { text-align: center; font-weight: normal; font-size: 10pt; letter-spacing: -0.5px; white-space: nowrap; overflow: hidden; }
+    /* [요청 반영] 50% 열 안에서 텍스트가 잘리지 않는 최대치인 11pt로 폰트 대폭 확대! */
+    #printContent .title-col { text-align: center; font-weight: normal; font-size: 11pt; letter-spacing: -0.6px; white-space: nowrap; overflow: hidden; }
     
     #printContent .special-bold { font-weight: bold !important; color: #000 !important; }
     #printContent .special-event td { background-color: #ffffff !important; }
     
-    /* 페이지 끌림 방지용 강제 래퍼 설정 */
-    .pdf-page-wrapper { page-break-after: always; width: 100%; clear: both; padding-bottom: 10px; }
+    .page-break { page-break-after: always; }
 
     @media print {
       @page { size: A4 portrait; margin: 20mm 10mm; } 
@@ -111,7 +110,7 @@
       body.printing #printOverlay { position: static; overflow: visible; display: block !important; background-color: #fff; }
       .print-controls { display: none !important; }
       
-      /* PC 프린터 출력 시 100% 비율 완벽 유지 (오른쪽 잘림 해결) */
+      /* PC 프린터 출력 시 100% 비율 완벽 유지 */
       #printContent { 
         padding: 0 !important; margin: 0 auto !important; max-width: 100% !important; box-shadow: none !important; 
         width: 99%; 
@@ -1594,21 +1593,17 @@ function exportToPDF() {
   let chunks = [];
   let exportData = displayList; 
   
-  // 한 페이지에 20줄로 변경 (다음 페이지 제목이 하단에 끌려오지 않게 여백 확보)
   for (let i = 0; i < exportData.length; i += 20) {
       chunks.push(exportData.slice(i, i + 20));
   }
 
   chunks.forEach((chunk, chunkIndex) => {
-    // 래퍼로 감싸서 페이지를 완벽하게 분할함
-    html += `<div class="pdf-page-wrapper">`;
     html += `
       <h2>공개 강연 계획표</h2>
       <div class="subtitle">인천 강화 회중</div>
       <table>
         <thead>
           <tr>
-            <!-- [비율 완벽 수정] 담당자 칸을 6%로 줄이고, 날짜(10%)와 제목(50%)에 공간을 몰아줌 -->
             <th style="width: 10%;">날짜</th>
             <th style="width: 50%;">제목</th>
             <th style="width: 7%;">연사</th>
@@ -1631,9 +1626,13 @@ function exportToPDF() {
       let micHTML = [item.mic1, item.mic2].filter(Boolean).join('<br>') || '';
       let boldClass = isSpecial ? 'special-bold' : '';
 
+      // [핵심] 모바일에서 날짜 숫자가 절대 겹치지 않도록 '강제 공백(&nbsp;)' 치환 적용
+      let dateStr = formatDisplayDate(item.date) || '';
+      dateStr = dateStr.replace(' ', '&nbsp;');
+
       html += `
         <tr${trClass}>
-          <td class="date-col ${boldClass}">${formatDisplayDate(item.date) || ''}</td>
+          <td class="date-col ${boldClass}">${dateStr}</td>
           <td class="title-col ${boldClass}">${titleHTML}</td>
           <td>${item.speaker || ''}</td>
           <td>${item.congregation || ''}</td>
@@ -1648,8 +1647,12 @@ function exportToPDF() {
     html += `
         </tbody>
       </table>
-    </div>
     `;
+
+    if (chunkIndex < chunks.length - 1) {
+        // [핵심] 다음장 제목이 하단에 끌려오지 않도록 PDF 전용 강제 절단선 삽입
+        html += `<div class="html2pdf__page-break page-break"></div>`;
+    }
   });
 
   document.getElementById('printContent').innerHTML = html;
@@ -1671,7 +1674,6 @@ function triggerPrint() {
     const controls = document.getElementById('printControlsBar');
     const overlay = document.getElementById('printOverlay');
     
-    // 모바일 스크롤 쏠림 방지를 위해 최상단 강제 이동
     window.scrollTo(0, 0);
     controls.style.display = 'none';
     
@@ -1681,7 +1683,6 @@ function triggerPrint() {
     
     overlay.style.overflow = 'visible';
     
-    // 모바일의 좁은 화면 구겨짐 및 겹침 방지를 위해 강제로 A4 비율(794px) 넓이 확보
     element.style.width = '794px';
     element.style.maxWidth = '794px';
     
@@ -1695,10 +1696,11 @@ function triggerPrint() {
         windowWidth: 794,
         width: 794,
         scrollX: 0,
-        scrollY: 0
+        scrollY: 0,
+        letterRendering: true // 글자 렌더링 품질을 높여 겹침 추가 차단
       }, 
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: 'css', after: '.pdf-page-wrapper' } // 다음장 제목이 하단에 끌려오지 않게 완벽 차단
+      pagebreak: { mode: ['css', 'legacy'] } // 강제 절단선을 완벽하게 인식하도록 세팅
     };
     
     alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 프린터로 보내거나 카톡으로 저장하세요.");
