@@ -1658,91 +1658,83 @@ function closePrintView() {
   document.getElementById('printContent').innerHTML = '';
 }
 
-// PC 인쇄 기능은 100% 보존하고, 스마트폰 화면 좁아짐에 따른 찌그러짐/잘림 버그만 완벽 해결한 코드
+// PC 인쇄 기능은 100% 보존하고, 스마트폰 자간 버그/잘림/끌림 현상만 핀셋으로 완벽하게 해결한 코드
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   
-  // 모바일 환경에서만 실행되는 PDF 캡처 로직
   if ((isStandalone || isMobile) && typeof html2pdf !== 'undefined') {
     const element = document.getElementById('printContent');
     const controls = document.getElementById('printControlsBar');
-    const overlay = document.getElementById('printOverlay');
     
     // 화면을 맨 위로 올려 캡처 시작점 고정
     window.scrollTo(0, 0);
     controls.style.display = 'none';
     
-    // 1. PC 원본 속성 백업 (캡처 후 화면 100% 원상복구용)
-    const originalOverlayPosition = overlay.style.position;
-    const originalOverlayWidth = overlay.style.width;
-    const originalOverlayHeight = overlay.style.height;
-    const originalOverlayOverflow = overlay.style.overflow;
-    
+    // 1. PC 원본 속성 철저히 백업 (캡처 후 완벽 원상복구용)
     const originalWidth = element.style.width;
     const originalMaxWidth = element.style.maxWidth;
+    const originalPosition = element.style.position;
     const originalPadding = element.style.padding;
     const originalMargin = element.style.margin;
-    const originalBoxShadow = element.style.boxShadow;
-    const originalFontFamily = element.style.fontFamily;
     
-    // 2. [오른쪽 짤림 및 찌그러짐 완벽 해결]
-    // 좁은 모바일 화면의 족쇄(fixed)를 풀고 부모 영역 자체를 800px로 강제 확장합니다.
-    overlay.style.position = 'absolute';
-    overlay.style.width = '800px';
-    overlay.style.height = 'auto';
-    overlay.style.overflow = 'visible';
-    
-    // 3. 표 영역도 800px로 펼치고 이중 여백이 발생하지 않도록 초기화
-    element.style.width = '800px';
-    element.style.maxWidth = '800px';
-    element.style.margin = '0px'; 
-    element.style.boxShadow = 'none';
+    // 2. [오른쪽 짤림 완벽 해결] 가로폭을 1024px(PC사이즈)로 강제로 넓혀 모든 열이 다 찍히게 함
+    element.style.position = 'absolute';
+    element.style.left = '0px';
+    element.style.top = '0px';
+    element.style.width = '1024px'; 
+    element.style.maxWidth = '1024px';
     element.style.padding = '0px'; 
+    element.style.margin = '0px';
     
-    // 4. [날짜 겹침 방지] iOS 숫자 렌더링 버그 차단을 위해 폰트 강제 고정 및 절대 공백(&nbsp;) 적용
-    element.style.fontFamily = "'Malgun Gothic', sans-serif";
+    // 3. [날짜 겹침 완벽 해결] iOS 숫자 자간 버그를 피하기 위해 캡처 시에만 자간 강제 초기화
     const dateCols = element.querySelectorAll('.date-col');
     dateCols.forEach(col => {
-      col.dataset.origHtml = col.innerHTML; 
-      col.innerHTML = col.innerHTML.replace(/ /g, '&nbsp;'); 
+      col.dataset.originalLetterSpacing = col.style.letterSpacing;
+      col.style.letterSpacing = 'normal'; // 버그 원인인 자간 축소 옵션 해제
     });
 
-    // 5. PDF 생성 (모든 페이지 상하좌우 동일 여백 15mm/10mm 강제 배분)
+    // 4. [다음장 끌림 완벽 해결] html2pdf 전용 강제 분할 클래스를 페이지 끝마다 주입
+    const pageBreaks = element.querySelectorAll('.page-break');
+    pageBreaks.forEach(pb => {
+      pb.classList.add('html2pdf__page-break'); 
+    });
+
+    // 5. PDF 생성 (1024px 폭으로 찍은 표를 A4 용지에 맞게 자동 축소시킴)
     const opt = {
-      margin: [15, 10, 15, 10], 
+      margin: [15, 10, 15, 10], // 상우하좌 균일한 여백
       filename: '공개강연계획표.pdf',
       image: { type: 'jpeg', quality: 1 },
       html2canvas: { 
         scale: 2, 
         useCORS: true, 
-        windowWidth: 800, // 캔버스 엔진에도 넓은 폭을 강제 인식시킴
-        width: 800,
+        windowWidth: 1024, // 엔진에 1024px 화면이라고 인식시킴
         scrollX: 0,
         scrollY: 0
       }, 
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'] } // 강제 분할 인식 모드 켜기
     };
     
     alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 파일로 저장하세요.");
     
     html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
-      // 6. 캡처 완료 즉시 스마트폰 화면을 원래 상태(PC 완벽 셋팅)로 100% 복원
-      overlay.style.position = originalOverlayPosition;
-      overlay.style.width = originalOverlayWidth;
-      overlay.style.height = originalOverlayHeight;
-      overlay.style.overflow = originalOverlayOverflow;
-      
+      // 6. 캡처 완료 즉시 모든 속성을 원래의 완벽한 PC 상태로 100% 원상 복구!
       element.style.width = originalWidth;
       element.style.maxWidth = originalMaxWidth;
+      element.style.position = originalPosition;
+      element.style.left = '';
+      element.style.top = '';
       element.style.padding = originalPadding;
       element.style.margin = originalMargin;
-      element.style.boxShadow = originalBoxShadow;
-      element.style.fontFamily = originalFontFamily;
       
       dateCols.forEach(col => {
-        if(col.dataset.origHtml) col.innerHTML = col.dataset.origHtml;
+        col.style.letterSpacing = col.dataset.originalLetterSpacing || ''; // 날짜 자간 복구
       });
+      pageBreaks.forEach(pb => {
+        pb.classList.remove('html2pdf__page-break'); // 강제 분할 클래스 제거
+      });
+      
       controls.style.display = 'flex'; 
       
       const file = new File([pdfBlob], '공개강연계획표.pdf', { type: 'application/pdf' });
@@ -1756,26 +1748,26 @@ function triggerPrint() {
         html2pdf().set(opt).from(element).save();
       }
     }).catch(function() {
-      // 에러 발생 시 원상 복구
-      overlay.style.position = originalOverlayPosition;
-      overlay.style.width = originalOverlayWidth;
-      overlay.style.height = originalOverlayHeight;
-      overlay.style.overflow = originalOverlayOverflow;
-      
+      // 에러 시에도 무조건 PC 화면 100% 원상 복구
       element.style.width = originalWidth;
       element.style.maxWidth = originalMaxWidth;
+      element.style.position = originalPosition;
+      element.style.left = '';
+      element.style.top = '';
       element.style.padding = originalPadding;
       element.style.margin = originalMargin;
-      element.style.boxShadow = originalBoxShadow;
-      element.style.fontFamily = originalFontFamily;
       
       dateCols.forEach(col => {
-        if(col.dataset.origHtml) col.innerHTML = col.dataset.origHtml;
+        col.style.letterSpacing = col.dataset.originalLetterSpacing || '';
       });
+      pageBreaks.forEach(pb => {
+        pb.classList.remove('html2pdf__page-break');
+      });
+      
       controls.style.display = 'flex'; 
     });
   } else {
-    // [PC 철통 보안] PC에서는 스크립트 개입 없이 순정 인쇄 기능만 작동합니다!
+    // [PC 내보내기 절대 보호] PC에서는 스크립트 개입 없이 순정 인쇄 기능만 무조건 작동!
     window.print();
   }
 }
