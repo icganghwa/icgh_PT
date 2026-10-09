@@ -1669,76 +1669,60 @@ function triggerPrint() {
     const controls = document.getElementById('printControlsBar');
     const overlay = document.getElementById('printOverlay');
     
-    // 1. 화면 스크롤을 맨 위로 올려서 캡처가 엉뚱한 곳에서 시작되는 것을 방지
     window.scrollTo(0, 0);
     controls.style.display = 'none';
     
-    // 2. PC 원본 속성 철저히 백업 (캡처 완료 후 완벽하게 원상복구하기 위함)
-    const origOverlayOverflow = overlay.style.overflow;
-    const origOverlayPosition = overlay.style.position;
-    const origElementWidth = element.style.width;
-    const origElementMaxWidth = element.style.maxWidth;
-    const origElementMargin = element.style.margin;
-    
-    // 3. [오른쪽 짤림 완벽 해결] 라이브 화면 자체의 제한을 풀고 표를 1000px로 강제로 쫙 폅니다.
-    // 이렇게 하면 모바일 화면을 뚫고 나가더라도 캡처 카메라가 1000px 전체를 온전히 찍을 수 있습니다.
-    overlay.style.overflow = 'visible';
-    overlay.style.position = 'static';
-    element.style.width = '1000px';
-    element.style.maxWidth = '1000px';
-    element.style.margin = '0px'; 
-    
-    // 4. [날짜 겹침 & 다음장 끌림 완벽 해결]
-    const dateCols = element.querySelectorAll('.date-col');
-    dateCols.forEach(col => {
-      col.dataset.origFont = col.style.fontFamily;
-      col.dataset.origSpacing = col.style.letterSpacing;
-      col.dataset.origWhiteSpace = col.style.whiteSpace; // [수정됨] 기존 줄바꿈 속성 백업
-      
-      // iOS에서 숫자 폭을 지멋대로 렌더링하는 버그를 피하기 위해, 
-      // 숫자 폭이 완벽하게 일정한 'Arial' 폰트로 1초간 강제 변경합니다.
-      col.style.fontFamily = 'Arial, sans-serif';
-      col.style.letterSpacing = '0px';
-      col.style.whiteSpace = 'nowrap'; // [수정됨] "11\n월 01일" 처럼 날짜가 두 줄로 깨지는 현상 원천 차단
-    });
-    
-    // 다음장 제목이 끌려오지 않게 PDF 강제 분할 명령(html2pdf__page-break)을 주입합니다.
-    const pageBreaks = element.querySelectorAll('.page-break');
-    pageBreaks.forEach(pb => pb.classList.add('html2pdf__page-break'));
+    // 스마트폰 전용 강제 스타일을 담은 <style> 태그 동적 생성 (우측 잘림 및 크기/정렬 최적화)
+    const mobileStyle = document.createElement('style');
+    mobileStyle.id = 'tempMobilePrintStyle';
+    mobileStyle.innerHTML = `
+      #printOverlay {
+        overflow: visible !important;
+        position: static !important;
+      }
+      #printContent {
+        width: 1200px !important;
+        max-width: 1200px !important;
+        margin: 0 auto !important; /* 중앙 정렬로 우측 쏠림 방지 */
+      }
+      #printContent .date-col {
+        font-family: Arial, sans-serif !important;
+        letter-spacing: 0px !important;
+        white-space: nowrap !important;
+      }
+      #printContent .page-break {
+        page-break-before: always !important;
+        break-before: page !important;
+      }
+      #printContent tr {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+    `;
+    document.head.appendChild(mobileStyle);
 
-    // 5. PDF 엔진 옵션 세팅
+    // PDF 엔진 옵션 세팅 (A4 크기에 맞게 크기 및 여백 조정)
     const opt = {
-      margin: [15, 10, 15, 10], // 상하좌우 동일 여백 강제 적용
+      margin: [10, 10, 10, 10], // 상하좌우 여백을 줄여서 표 크기를 A4에 맞게 확대
       filename: '공개강연계획표.pdf',
       image: { type: 'jpeg', quality: 1 },
       html2canvas: { 
         scale: 2, 
         useCORS: true, 
-        windowWidth: 1000, // 캡처 렌즈의 시야각도 1000px로 넓혀서 오른쪽 짤림을 원천 봉쇄
-        width: 1000,
+        windowWidth: 1200, // 캡처 시야각을 1200px로 넓혀 우측 잘림 원천 봉쇄
+        width: 1200,
         scrollX: 0,
         scrollY: 0
       }, 
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'], avoid: 'tr' } // [수정됨] 표의 행(tr) 중간이 잘리면서 다음 페이지로 넘어가는 현상 완벽 방지
+      pagebreak: { mode: ['css', 'legacy'], avoid: 'tr' }
     };
     
     alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 파일로 저장하세요.");
     
     html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
-      // 6. 캡처 완료 즉시 모든 속성을 원래의 완벽한 PC 상태로 100% 원상 복구!
-      overlay.style.overflow = origOverlayOverflow;
-      overlay.style.position = origOverlayPosition;
-      element.style.width = origElementWidth;
-      element.style.maxWidth = origElementMaxWidth;
-      element.style.margin = origElementMargin;
-      
-      dateCols.forEach(col => {
-        col.style.fontFamily = col.dataset.origFont || '';
-        col.style.letterSpacing = col.dataset.origSpacing || '';
-        col.style.whiteSpace = col.dataset.origWhiteSpace || ''; // [수정됨] 줄바꿈 속성 원상 복구
-      });
-      pageBreaks.forEach(pb => pb.classList.remove('html2pdf__page-break'));
+      const injectedStyle = document.getElementById('tempMobilePrintStyle');
+      if (injectedStyle) injectedStyle.remove();
       
       controls.style.display = 'flex'; 
       
@@ -1753,19 +1737,8 @@ function triggerPrint() {
         html2pdf().set(opt).from(element).save();
       }
     }).catch(function() {
-      // 에러 시에도 무조건 화면 원상 복구
-      overlay.style.overflow = origOverlayOverflow;
-      overlay.style.position = origOverlayPosition;
-      element.style.width = origElementWidth;
-      element.style.maxWidth = origElementMaxWidth;
-      element.style.margin = origElementMargin;
-      
-      dateCols.forEach(col => {
-        col.style.fontFamily = col.dataset.origFont || '';
-        col.style.letterSpacing = col.dataset.origSpacing || '';
-        col.style.whiteSpace = col.dataset.origWhiteSpace || ''; // [수정됨] 줄바꿈 속성 원상 복구
-      });
-      pageBreaks.forEach(pb => pb.classList.remove('html2pdf__page-break'));
+      const injectedStyle = document.getElementById('tempMobilePrintStyle');
+      if (injectedStyle) injectedStyle.remove();
       
       controls.style.display = 'flex'; 
     });
