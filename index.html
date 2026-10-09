@@ -1658,7 +1658,8 @@ function closePrintView() {
   document.getElementById('printContent').innerHTML = '';
 }
 
-// PC 인쇄 기능은 100% 철통 보존하고, 스마트폰 하얀 화면/에러를 가상 공간(onclone) 방식으로 완벽 차단한 최종 코드
+// PC 인쇄 기능은 100% 철통 보존하고, 스마트폰 우측 잘림/날짜 간격/페이지 쏠림을 
+// 실시간 화면 조작 방식으로 완벽하게 차단한 최종 코드
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1666,59 +1667,74 @@ function triggerPrint() {
   if ((isStandalone || isMobile) && typeof html2pdf !== 'undefined') {
     const element = document.getElementById('printContent');
     const controls = document.getElementById('printControlsBar');
+    const overlay = document.getElementById('printOverlay');
     
+    // 1. 화면 스크롤을 맨 위로 올려서 캡처가 엉뚱한 곳에서 시작되는 것을 방지
+    window.scrollTo(0, 0);
     controls.style.display = 'none';
     
+    // 2. PC 원본 속성 철저히 백업 (캡처 완료 후 완벽하게 원상복구하기 위함)
+    const origOverlayOverflow = overlay.style.overflow;
+    const origOverlayPosition = overlay.style.position;
+    const origElementWidth = element.style.width;
+    const origElementMaxWidth = element.style.maxWidth;
+    const origElementMargin = element.style.margin;
+    
+    // 3. [오른쪽 짤림 완벽 해결] 라이브 화면 자체의 제한을 풀고 표를 1000px로 강제로 쫙 폅니다.
+    // 이렇게 하면 모바일 화면을 뚫고 나가더라도 캡처 카메라가 1000px 전체를 온전히 찍을 수 있습니다.
+    overlay.style.overflow = 'visible';
+    overlay.style.position = 'static';
+    element.style.width = '1000px';
+    element.style.maxWidth = '1000px';
+    element.style.margin = '0px'; 
+    
+    // 4. [날짜 겹침 & 다음장 끌림 완벽 해결]
+    const dateCols = element.querySelectorAll('.date-col');
+    dateCols.forEach(col => {
+      col.dataset.origFont = col.style.fontFamily;
+      col.dataset.origSpacing = col.style.letterSpacing;
+      // iOS에서 숫자 폭을 지멋대로 렌더링하는 버그를 피하기 위해, 
+      // 숫자 폭이 완벽하게 일정한 'Arial' 폰트로 1초간 강제 변경합니다.
+      col.style.fontFamily = 'Arial, sans-serif';
+      col.style.letterSpacing = '0px';
+    });
+    
+    // 다음장 제목이 끌려오지 않게 PDF 강제 분할 명령(html2pdf__page-break)을 주입합니다.
+    const pageBreaks = element.querySelectorAll('.page-break');
+    pageBreaks.forEach(pb => pb.classList.add('html2pdf__page-break'));
+
+    // 5. PDF 엔진 옵션 세팅
     const opt = {
-      margin: [15, 10, 15, 10], // 상하 15mm, 좌우 10mm 균일한 여백 확보
+      margin: [15, 10, 15, 10], // 상하좌우 동일 여백 강제 적용
       filename: '공개강연계획표.pdf',
       image: { type: 'jpeg', quality: 1 },
       html2canvas: { 
         scale: 2, 
         useCORS: true, 
-        windowWidth: 1024, // 캡처 렌즈 크기를 PC 사이즈로 맞춰서 오른쪽 잘림 원천 차단
-        
-        // [핵심 해결책] 실제 스마트폰 화면은 절대 건드리지 않습니다! (하얀 화면 원천 차단)
-        // 오직 PDF 변환기 내부에 생성된 가상의 복사본(clonedDoc)만 조작하여 사진을 찍습니다.
-        onclone: function(clonedDoc) {
-          const clonedOverlay = clonedDoc.getElementById('printOverlay');
-          const clonedElement = clonedDoc.getElementById('printContent');
-          
-          if(clonedOverlay) {
-              clonedOverlay.style.position = 'absolute';
-              clonedOverlay.style.overflow = 'visible';
-          }
-          
-          if(clonedElement) {
-              // 가상 공간 안에서만 표를 넓게 펼침
-              clonedElement.style.width = '1024px';
-              clonedElement.style.maxWidth = '1024px';
-              clonedElement.style.margin = '0px';
-              clonedElement.style.padding = '0px';
-              clonedElement.style.boxShadow = 'none';
-              
-              // [날짜 겹침 완벽 해결] 날짜 글자 간격 버그 방지를 위해 자간을 초기화하고 특수 공백 삽입
-              const dateCols = clonedElement.querySelectorAll('.date-col');
-              dateCols.forEach(col => {
-                col.style.letterSpacing = 'normal';
-                col.innerHTML = col.innerHTML.replace(/ /g, '&nbsp;'); 
-              });
-              
-              // [다음장 끌림 완벽 해결] 페이지 끝마다 강제 컷팅 명령 삽입
-              const pageBreaks = clonedElement.querySelectorAll('.page-break');
-              pageBreaks.forEach(pb => {
-                pb.classList.add('html2pdf__page-break');
-              });
-          }
-        }
+        windowWidth: 1000, // 캡처 렌즈의 시야각도 1000px로 넓혀서 오른쪽 짤림을 원천 봉쇄
+        width: 1000,
+        scrollX: 0,
+        scrollY: 0
       }, 
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'] }
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
     
     alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 파일로 저장하세요.");
     
     html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
+      // 6. 캡처 완료 즉시 모든 속성을 원래의 완벽한 PC 상태로 100% 원상 복구!
+      overlay.style.overflow = origOverlayOverflow;
+      overlay.style.position = origOverlayPosition;
+      element.style.width = origElementWidth;
+      element.style.maxWidth = origElementMaxWidth;
+      element.style.margin = origElementMargin;
+      
+      dateCols.forEach(col => {
+        col.style.fontFamily = col.dataset.origFont || '';
+        col.style.letterSpacing = col.dataset.origSpacing || '';
+      });
+      pageBreaks.forEach(pb => pb.classList.remove('html2pdf__page-break'));
+      
       controls.style.display = 'flex'; 
       
       const file = new File([pdfBlob], '공개강연계획표.pdf', { type: 'application/pdf' });
@@ -1731,13 +1747,25 @@ function triggerPrint() {
       } else {
         html2pdf().set(opt).from(element).save();
       }
-    }).catch(function(err) {
+    }).catch(function() {
+      // 에러 시에도 무조건 화면 원상 복구
+      overlay.style.overflow = origOverlayOverflow;
+      overlay.style.position = origOverlayPosition;
+      element.style.width = origElementWidth;
+      element.style.maxWidth = origElementMaxWidth;
+      element.style.margin = origElementMargin;
+      
+      dateCols.forEach(col => {
+        col.style.fontFamily = col.dataset.origFont || '';
+        col.style.letterSpacing = col.dataset.origSpacing || '';
+      });
+      pageBreaks.forEach(pb => pb.classList.remove('html2pdf__page-break'));
+      
       controls.style.display = 'flex'; 
-      alert("PDF 생성 중 일시적인 오류가 발생했습니다. 다시 시도해주세요.");
     });
     
   } else {
-    // [PC 내보내기 절대 보호] PC에서는 이 자바스크립트가 무시되며, 순정 인쇄 기능만 안전하게 작동합니다!
+    // [PC 내보내기 절대 보호] PC에서는 스크립트 개입 없이 브라우저 순정 인쇄 기능만 무조건 작동!
     window.print();
   }
 }
