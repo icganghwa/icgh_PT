@@ -1658,11 +1658,12 @@ function closePrintView() {
   document.getElementById('printContent').innerHTML = '';
 }
 
-// PC 인쇄 기능은 100% 보존하고, 스마트폰 자간/쏠림/잘림 버그만 완벽하게 치료한 최종 코드
+// PC 인쇄 기능은 100% 보존하고, 스마트폰 화면 좁아짐에 따른 찌그러짐/잘림 버그만 완벽 해결한 코드
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   
+  // 모바일 환경에서만 실행되는 PDF 캡처 로직
   if ((isStandalone || isMobile) && typeof html2pdf !== 'undefined') {
     const element = document.getElementById('printContent');
     const controls = document.getElementById('printControlsBar');
@@ -1672,41 +1673,50 @@ function triggerPrint() {
     window.scrollTo(0, 0);
     controls.style.display = 'none';
     
-    // 1. PC 원본 속성 백업 (캡처 후 완벽 원상복구용)
+    // 1. PC 원본 속성 백업 (캡처 후 화면 100% 원상복구용)
+    const originalOverlayPosition = overlay.style.position;
+    const originalOverlayWidth = overlay.style.width;
+    const originalOverlayHeight = overlay.style.height;
+    const originalOverlayOverflow = overlay.style.overflow;
+    
     const originalWidth = element.style.width;
     const originalMaxWidth = element.style.maxWidth;
     const originalPadding = element.style.padding;
     const originalMargin = element.style.margin;
     const originalBoxShadow = element.style.boxShadow;
     const originalFontFamily = element.style.fontFamily;
-    const originalOverflow = overlay.style.overflow;
     
-    // 2. [우측 쏠림 완벽 해결] 가로폭을 800px로 펴고, 마진을 0으로 만들어 표를 왼쪽 끝에 딱 붙임
+    // 2. [오른쪽 짤림 및 찌그러짐 완벽 해결]
+    // 좁은 모바일 화면의 족쇄(fixed)를 풀고 부모 영역 자체를 800px로 강제 확장합니다.
+    overlay.style.position = 'absolute';
+    overlay.style.width = '800px';
+    overlay.style.height = 'auto';
     overlay.style.overflow = 'visible';
+    
+    // 3. 표 영역도 800px로 펼치고 이중 여백이 발생하지 않도록 초기화
     element.style.width = '800px';
-    element.style.maxWidth = 'none';
+    element.style.maxWidth = '800px';
     element.style.margin = '0px'; 
     element.style.boxShadow = 'none';
+    element.style.padding = '0px'; 
     
-    // 3. [2,3페이지 상단 쏠림 해결] 내부 패딩을 없애고, html2pdf 옵션으로 매 페이지 동일 여백 부여
-    element.style.padding = '0px';
-    
-    // 4. [날짜 겹침 완벽 해결] iOS 숫자 버그를 피하기 위해 폰트 강제 고정 및 절대 공백(&nbsp;) 적용
+    // 4. [날짜 겹침 방지] iOS 숫자 렌더링 버그 차단을 위해 폰트 강제 고정 및 절대 공백(&nbsp;) 적용
     element.style.fontFamily = "'Malgun Gothic', sans-serif";
     const dateCols = element.querySelectorAll('.date-col');
     dateCols.forEach(col => {
-      col.dataset.origHtml = col.innerHTML; // 원래 글자 백업
-      col.innerHTML = col.innerHTML.replace(/ /g, '&nbsp;'); // 스페이스바를 절대 공백으로 치환
+      col.dataset.origHtml = col.innerHTML; 
+      col.innerHTML = col.innerHTML.replace(/ /g, '&nbsp;'); 
     });
 
+    // 5. PDF 생성 (모든 페이지 상하좌우 동일 여백 15mm/10mm 강제 배분)
     const opt = {
-      margin: [15, 10, 15, 10], // 모든 페이지에 상단 15mm, 하단 15mm 등 동일한 여백 강제 생성
+      margin: [15, 10, 15, 10], 
       filename: '공개강연계획표.pdf',
       image: { type: 'jpeg', quality: 1 },
       html2canvas: { 
         scale: 2, 
         useCORS: true, 
-        windowWidth: 800, // 캔버스 너비를 800으로 고정하여 오른쪽 잘림 100% 방지
+        windowWidth: 800, // 캔버스 엔진에도 넓은 폭을 강제 인식시킴
         width: 800,
         scrollX: 0,
         scrollY: 0
@@ -1717,19 +1727,22 @@ function triggerPrint() {
     alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 파일로 저장하세요.");
     
     html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
-      // 5. 캡처 완료 즉시 모든 속성을 원래의 완벽한 PC 상태로 100% 원상 복구
+      // 6. 캡처 완료 즉시 스마트폰 화면을 원래 상태(PC 완벽 셋팅)로 100% 복원
+      overlay.style.position = originalOverlayPosition;
+      overlay.style.width = originalOverlayWidth;
+      overlay.style.height = originalOverlayHeight;
+      overlay.style.overflow = originalOverlayOverflow;
+      
       element.style.width = originalWidth;
       element.style.maxWidth = originalMaxWidth;
       element.style.padding = originalPadding;
       element.style.margin = originalMargin;
       element.style.boxShadow = originalBoxShadow;
       element.style.fontFamily = originalFontFamily;
-      overlay.style.overflow = originalOverflow;
       
       dateCols.forEach(col => {
-        if(col.dataset.origHtml) col.innerHTML = col.dataset.origHtml; // 날짜 공백 원상 복구
+        if(col.dataset.origHtml) col.innerHTML = col.dataset.origHtml;
       });
-      
       controls.style.display = 'flex'; 
       
       const file = new File([pdfBlob], '공개강연계획표.pdf', { type: 'application/pdf' });
@@ -1743,23 +1756,26 @@ function triggerPrint() {
         html2pdf().set(opt).from(element).save();
       }
     }).catch(function() {
-      // 에러 발생 시에도 무조건 PC 화면 100% 원상 복구
+      // 에러 발생 시 원상 복구
+      overlay.style.position = originalOverlayPosition;
+      overlay.style.width = originalOverlayWidth;
+      overlay.style.height = originalOverlayHeight;
+      overlay.style.overflow = originalOverlayOverflow;
+      
       element.style.width = originalWidth;
       element.style.maxWidth = originalMaxWidth;
       element.style.padding = originalPadding;
       element.style.margin = originalMargin;
       element.style.boxShadow = originalBoxShadow;
       element.style.fontFamily = originalFontFamily;
-      overlay.style.overflow = originalOverflow;
       
       dateCols.forEach(col => {
         if(col.dataset.origHtml) col.innerHTML = col.dataset.origHtml;
       });
-      
       controls.style.display = 'flex'; 
     });
   } else {
-    // [PC 내보내기 철통 보안] PC에서는 오직 완벽하게 세팅된 순정 인쇄 기능만 사용합니다!
+    // [PC 철통 보안] PC에서는 스크립트 개입 없이 순정 인쇄 기능만 작동합니다!
     window.print();
   }
 }
