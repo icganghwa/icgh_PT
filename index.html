@@ -1654,28 +1654,77 @@ function closePrintView() {
   document.getElementById('printContent').innerHTML = '';
 }
 
-// [원본 복구] 모바일 관련 실험 코드를 지우고 초기 상태로 되돌림
+// PC 기능은 절대 건드리지 않고 오직 모바일 캡처 버그만 잡은 최종 코드입니다.
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   
+  // 모바일 환경에서만 작동하는 PDF 변환 로직
   if ((isStandalone || isMobile) && typeof html2pdf !== 'undefined') {
     const element = document.getElementById('printContent');
     const controls = document.getElementById('printControlsBar');
+    const overlay = document.getElementById('printOverlay');
     
+    // 모바일 스크롤 쏠림 방지를 위해 최상단 강제 이동
+    window.scrollTo(0, 0);
     controls.style.display = 'none';
     
+    // 1. 기존의 완벽한 PC용 속성 백업 (캡처 후 복구용)
+    const originalWidth = element.style.width;
+    const originalMaxWidth = element.style.maxWidth;
+    const originalPadding = element.style.padding;
+    const originalMargin = element.style.margin;
+    const originalBoxShadow = element.style.boxShadow;
+    const originalOverflow = overlay.style.overflow;
+    
+    // 2. [페이지 쏠림 완벽 해결] 모바일 캡처 시 컨테이너 여백/패딩 강제 초기화
+    // 요소 자체의 패딩을 0으로 만들고 html2pdf 옵션으로 매 페이지 동일한 여백을 줍니다.
+    overlay.style.overflow = 'visible';
+    element.style.width = '794px';
+    element.style.maxWidth = '794px';
+    element.style.padding = '0px'; 
+    element.style.margin = '0px';
+    element.style.boxShadow = 'none';
+
+    // 3. [날짜 겹침 완벽 해결] 캡처 직전에만 날짜 열의 자간을 강제로 넓힘
+    const dateCols = element.querySelectorAll('.date-col');
+    dateCols.forEach(col => {
+      col.dataset.originalLetterSpacing = col.style.letterSpacing; // 원래 자간 저장
+      col.style.letterSpacing = '0.5px'; // 겹침 방지를 위해 강제로 간격 확보
+    });
+    
+    // 4. PDF 설정 (모든 페이지에 상하 15mm, 좌우 10mm 여백 균일하게 적용)
     const opt = {
-      margin: [10, 5, 10, 5], 
+      margin: [15, 10, 15, 10], 
       filename: '공개강연계획표.pdf',
       image: { type: 'jpeg', quality: 1 },
-      html2canvas: { scale: 2, useCORS: true }, 
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      html2canvas: { 
+        scale: 2, 
+        useCORS: true, 
+        windowWidth: 794,
+        width: 794,
+        scrollX: 0,
+        scrollY: 0,
+        letterRendering: true
+      }, 
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'] }
     };
     
-    alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 프린터로 보내거나 저장하세요.");
+    alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 프린터로 보내거나 카톡으로 저장하세요.");
     
     html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
+      // 5. 캡처 완료 즉시 원래 디자인으로 100% 원상 복구
+      element.style.width = originalWidth;
+      element.style.maxWidth = originalMaxWidth;
+      element.style.padding = originalPadding;
+      element.style.margin = originalMargin;
+      element.style.boxShadow = originalBoxShadow;
+      overlay.style.overflow = originalOverflow;
+      
+      dateCols.forEach(col => {
+        col.style.letterSpacing = col.dataset.originalLetterSpacing || ''; // 날짜 자간 복구
+      });
       controls.style.display = 'flex'; 
       
       const file = new File([pdfBlob], '공개강연계획표.pdf', { type: 'application/pdf' });
@@ -1690,10 +1739,20 @@ function triggerPrint() {
         html2pdf().set(opt).from(element).save();
       }
     }).catch(function() {
+      // 에러 시에도 무조건 화면 복구
+      element.style.width = originalWidth;
+      element.style.maxWidth = originalMaxWidth;
+      element.style.padding = originalPadding;
+      element.style.margin = originalMargin;
+      element.style.boxShadow = originalBoxShadow;
+      overlay.style.overflow = originalOverflow;
+      dateCols.forEach(col => {
+        col.style.letterSpacing = col.dataset.originalLetterSpacing || '';
+      });
       controls.style.display = 'flex'; 
     });
   } else {
-    // PC에서는 오직 완벽하게 세팅된 순정 인쇄 기능만 사용
+    // [PC 내보내기 철통 보안] PC에서는 오직 완벽하게 세팅된 순정 인쇄 기능만 수행합니다.
     window.print();
   }
 }
