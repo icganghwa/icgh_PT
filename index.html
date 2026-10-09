@@ -69,7 +69,9 @@
       }
     }
 
-   /* 인쇄 및 PDF 내보내기 전용 스타일 (가장 완벽했던 초기 원본으로 100% 복구) */
+   /* =========================================
+       [수정완료] 인쇄 및 PDF 내보내기 전용 스타일 
+       ========================================= */
     #printOverlay { 
       display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
       background-color: #e2e8f0; z-index: 99999; overflow-y: auto; -webkit-overflow-scrolling: touch;
@@ -78,39 +80,46 @@
     body.printing #printOverlay { display: block; }
 
     #printContent { 
-      max-width: 210mm; margin: 20px auto; background-color: #fff; 
-      box-shadow: 0 4px 10px rgba(0,0,0,0.15); padding: 25mm 12mm 15mm 12mm; 
-      color: #000; font-family: 'Malgun Gothic', sans-serif;
+      width: 794px; /* A4 픽셀 크기 고정으로 틀어짐 방지 */
+      margin: 20px auto; 
+      background-color: #fff; 
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
+      padding: 15mm 10mm; 
+      color: #000; 
+      font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      box-sizing: border-box;
     }
     
-    #printContent h2 { text-align: center; margin-bottom: 25px; font-size: 16pt; font-weight: bold; color: #333; }
-    #printContent .subtitle { text-align: right; margin-bottom: 6px; font-size: 10pt; font-weight: bold; color: #555; }
-    #printContent table { width: 100%; border-collapse: collapse; font-size: 9.5pt; table-layout: fixed; line-height: 1.15; margin-top: 0px; margin-bottom: 20px; } 
-    #printContent th, #printContent td { border: 1px solid #000; padding: 2px 1px; text-align: center; vertical-align: middle; word-break: keep-all; box-sizing: border-box; } 
-    #printContent th { background-color: #ffffff !important; font-weight: bold; font-size: 9.5pt; padding: 4px 1px; height: 36px !important; }
-    #printContent tr { height: 36px !important; page-break-inside: avoid; } 
-    #printContent .date-col { font-size: 8.5pt; white-space: nowrap; }
+    #printContent h2 { text-align: center; margin-bottom: 20px; font-size: 16pt; font-weight: bold; color: #333; }
+    #printContent .subtitle { text-align: right; margin-bottom: 5px; font-size: 10pt; font-weight: bold; color: #555; }
+    #printContent table { width: 100%; border-collapse: collapse; font-size: 9.5pt; table-layout: fixed; line-height: 1.2; margin-bottom: 0; } 
+    #printContent th, #printContent td { border: 1px solid #000; padding: 2px 1px; text-align: center; vertical-align: middle; word-break: keep-all; overflow: hidden; } 
+    #printContent th { background-color: #ffffff !important; font-weight: bold; font-size: 9.5pt; height: 32px !important; }
+    #printContent tr { height: 32px !important; page-break-inside: avoid; } 
     
-    /* 제목이 줄바꿈 되지 않고 완벽하게 한줄로 표시됨 (말줄임표 제거 완료) */
-    #printContent .title-col { text-align: center; font-weight: normal; font-size: 10.5pt; letter-spacing: -0.5px; white-space: nowrap; }
+    /* 스마트폰 날짜 겹침 원인이었던 좁은 자간 설정 삭제 */
+    #printContent .date-col { font-size: 8.5pt; white-space: nowrap; letter-spacing: 0; }
+    
+    /* 말줄임표(...)를 삭제하고 한 줄로 꽉 차게 보이도록 복구 */
+    #printContent .title-col { text-align: center; font-weight: normal; font-size: 10pt; letter-spacing: -0.5px; white-space: nowrap; text-overflow: clip; }
     
     #printContent .special-bold { font-weight: bold !important; color: #000 !important; }
     #printContent .special-event td { background-color: #ffffff !important; }
-    #printContent .page-break { page-break-after: always; }
+    .page-break { page-break-after: always; }
 
     @media print {
-      @page { size: A4 portrait; margin: 20mm 10mm; } 
+      @page { size: A4 portrait; margin: 15mm 10mm; } 
       body { background-color: #fff; margin: 0; padding: 0; color: #000; }
       body.printing #printOverlay { position: static; overflow: visible; display: block !important; background-color: #fff; }
       .print-controls { display: none !important; }
       
+      /* PC 프린터 인쇄 시 오른쪽 잘림 방지 (100% 딱 맞춤) */
       #printContent { 
-        padding: 0 !important; margin: 0 auto !important; max-width: 100% !important; box-shadow: none !important; 
+        padding: 0 !important; margin: 0 !important; max-width: 100% !important; box-shadow: none !important; 
         width: 100% !important; 
       }
       #printContent th, #printContent td { border: 1px solid #000 !important; }
     }
-
     /* 스마트폰 가로 모드(Landscape) 전용 최적화 */
     @media screen and (max-width: 950px) and (orientation: landscape) {
       .py-4 { padding-top: 0.3rem !important; padding-bottom: 0.3rem !important; }
@@ -1587,8 +1596,9 @@ function exportToPDF() {
   let chunks = [];
   let exportData = displayList; 
   
-  for (let i = 0; i < exportData.length; i += 22) {
-      chunks.push(exportData.slice(i, i + 22));
+  // 모바일 하단에 다음장 제목이 끌려오지 않도록 한 페이지당 20줄로 최적화
+  for (let i = 0; i < exportData.length; i += 20) {
+      chunks.push(exportData.slice(i, i + 20));
   }
 
   chunks.forEach((chunk, chunkIndex) => {
@@ -1598,14 +1608,15 @@ function exportToPDF() {
       <table>
         <thead>
           <tr>
-            <th style="width: 8%;">날짜</th>
-            <th style="width: 44%;">제목</th>
-            <th style="width: 8%;">연사</th>
-            <th style="width: 10%;">회중</th>
-            <th style="width: 7.5%;">사회</th>
-            <th style="width: 7.5%;">낭독</th>
-            <th style="width: 7.5%;">기도</th>
-            <th style="width: 7.5%;">마이크</th>
+            <!-- 제안해주신 비율 적용: 이름 칸 축소, 날짜 및 제목 칸 넉넉히 확보 -->
+            <th style="width: 10%;">날짜</th>
+            <th style="width: 48%;">제목</th>
+            <th style="width: 6.5%;">연사</th>
+            <th style="width: 9%;">회중</th>
+            <th style="width: 6.5%;">사회</th>
+            <th style="width: 6.5%;">낭독</th>
+            <th style="width: 6.5%;">기도</th>
+            <th style="width: 7%;">마이크</th>
           </tr>
         </thead>
         <tbody>
@@ -1654,7 +1665,6 @@ function closePrintView() {
   document.getElementById('printContent').innerHTML = '';
 }
 
-// 스마트폰에서 내보내기 시에만 가상 캔버스를 임시 적용하여 캡처
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1662,29 +1672,39 @@ function triggerPrint() {
   if ((isStandalone || isMobile) && typeof html2pdf !== 'undefined') {
     const element = document.getElementById('printContent');
     const controls = document.getElementById('printControlsBar');
+    const overlay = document.getElementById('printOverlay');
     
     controls.style.display = 'none';
     
-    // PC 디자인에 영향을 주지 않도록, 모바일 캡처 시작 1초 전에만 너비를 강제 확장
     const originalWidth = element.style.width;
     const originalMaxWidth = element.style.maxWidth;
+    const originalPosition = element.style.position;
+    const originalLeft = element.style.left;
+    const originalOverflow = overlay.style.overflow;
+    
+    overlay.style.overflow = 'visible';
     element.style.width = '794px';
     element.style.maxWidth = '794px';
+    element.style.position = 'absolute';
+    element.style.left = '0';
     
     const opt = {
       margin: [10, 5, 10, 5], 
       filename: '공개강연계획표.pdf',
       image: { type: 'jpeg', quality: 1 },
       html2canvas: { scale: 2, useCORS: true, windowWidth: 794 }, 
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: 'css', after: '.page-break' } // 강제 페이지 넘김 설정 추가
     };
     
     alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 프린터로 보내거나 저장하세요.");
     
     html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
-      // 캡처가 끝나면 즉시 원래 너비로 복구
       element.style.width = originalWidth;
       element.style.maxWidth = originalMaxWidth;
+      element.style.position = originalPosition;
+      element.style.left = originalLeft;
+      overlay.style.overflow = originalOverflow;
       controls.style.display = 'flex'; 
       
       const file = new File([pdfBlob], '공개강연계획표.pdf', { type: 'application/pdf' });
@@ -1701,10 +1721,13 @@ function triggerPrint() {
     }).catch(function() {
       element.style.width = originalWidth;
       element.style.maxWidth = originalMaxWidth;
+      element.style.position = originalPosition;
+      element.style.left = originalLeft;
+      overlay.style.overflow = originalOverflow;
       controls.style.display = 'flex'; 
     });
   } else {
-    // PC에서는 스크립트 개입 없이 완벽한 기본 인쇄 기능(window.print)만 사용
+    // PC에서는 오직 순정 인쇄 기능만 사용
     window.print();
   }
 }
