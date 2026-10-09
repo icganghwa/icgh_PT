@@ -1658,8 +1658,6 @@ function closePrintView() {
   document.getElementById('printContent').innerHTML = '';
 }
 
-// PC 인쇄 기능은 100% 철통 보존하고, 스마트폰 우측 잘림/날짜 간격/페이지 쏠림을 
-// 실시간 화면 조작 방식으로 완벽하게 차단한 최종 코드
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1672,7 +1670,7 @@ function triggerPrint() {
     window.scrollTo(0, 0);
     controls.style.display = 'none';
     
-    // 스마트폰 전용 강제 스타일을 담은 <style> 태그 동적 생성 (우측 잘림 및 크기/정렬 최적화)
+    // 스마트폰 전용 강제 스타일 (표 중앙 정렬 및 우측 잘림 완벽 차단)
     const mobileStyle = document.createElement('style');
     mobileStyle.id = 'tempMobilePrintStyle';
     mobileStyle.innerHTML = `
@@ -1683,7 +1681,14 @@ function triggerPrint() {
       #printContent {
         width: 1200px !important;
         max-width: 1200px !important;
-        margin: 0 auto !important; /* 중앙 정렬로 우측 쏠림 방지 */
+        margin: 0 auto !important;
+        box-sizing: border-box !important;
+      }
+      /* 표 자체를 1200px로 강제 확장하고 정중앙에 배치하여 우측 쏠림/잘림 원천 방지 */
+      #printContent table {
+        width: 1200px !important;
+        max-width: 1200px !important;
+        margin: 0 auto !important;
       }
       #printContent .date-col {
         font-family: Arial, sans-serif !important;
@@ -1701,15 +1706,15 @@ function triggerPrint() {
     `;
     document.head.appendChild(mobileStyle);
 
-    // PDF 엔진 옵션 세팅 (A4 크기에 맞게 크기 및 여백 조정)
+    // PDF 엔진 옵션 세팅
     const opt = {
-      margin: [10, 10, 10, 10], // 상하좌우 여백을 줄여서 표 크기를 A4에 맞게 확대
+      margin: [10, 10, 10, 10], // 상하좌우 여백 최적화
       filename: '공개강연계획표.pdf',
       image: { type: 'jpeg', quality: 1 },
       html2canvas: { 
         scale: 2, 
         useCORS: true, 
-        windowWidth: 1200, // 캡처 시야각을 1200px로 넓혀 우측 잘림 원천 봉쇄
+        windowWidth: 1200, // 캡처 시야각 1200px 고정
         width: 1200,
         scrollX: 0,
         scrollY: 0
