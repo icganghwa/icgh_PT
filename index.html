@@ -1658,68 +1658,78 @@ function closePrintView() {
   document.getElementById('printContent').innerHTML = '';
 }
 
-// PC 인쇄 기능은 100% 보존하고, 스마트폰 빈화면/쏠림/하단끌림 에러를 모두 잡은 최종 코드
+// PC 인쇄 기능은 100% 보존하고, 스마트폰 자간/쏠림/잘림 버그만 완벽하게 치료한 최종 코드
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   
-  // 모바일 환경에서만 실행되는 PDF 캡처 로직
   if ((isStandalone || isMobile) && typeof html2pdf !== 'undefined') {
     const element = document.getElementById('printContent');
     const controls = document.getElementById('printControlsBar');
     const overlay = document.getElementById('printOverlay');
     
-    // 1. 화면 스크롤을 맨 위로 올려서 캡처 시작점 고정
+    // 화면을 맨 위로 올려 캡처 시작점 고정
     window.scrollTo(0, 0);
     controls.style.display = 'none';
     
-    // 2. PC 원본 디자인 속성 백업 (캡처 후 완벽 원상복구용)
+    // 1. PC 원본 속성 백업 (캡처 후 완벽 원상복구용)
     const originalWidth = element.style.width;
     const originalMaxWidth = element.style.maxWidth;
     const originalPadding = element.style.padding;
     const originalMargin = element.style.margin;
     const originalBoxShadow = element.style.boxShadow;
+    const originalFontFamily = element.style.fontFamily;
     const originalOverflow = overlay.style.overflow;
-    const originalOverlayPosition = overlay.style.position;
     
-    // 3. [빈 화면 및 우측 쏠림 완벽 해결] 
-    // position:absolute(빈화면 원인)를 빼고, 대신 부모(overlay)의 제한을 풀어 전체가 정상 캡처되게 함
+    // 2. [우측 쏠림 완벽 해결] 가로폭을 800px로 펴고, 마진을 0으로 만들어 표를 왼쪽 끝에 딱 붙임
     overlay.style.overflow = 'visible';
-    overlay.style.position = 'static'; 
-    element.style.margin = '0px'; // auto 마진을 없애 우측 쏠림 원천 차단
-    
-    // 4. [하단 끌림 완벽 해결] A4 사이즈(794px) 고정 및 내부 여백으로만 간격 조정
-    element.style.width = '794px';
-    element.style.maxWidth = '794px';
-    element.style.padding = '15mm 10mm'; 
+    element.style.width = '800px';
+    element.style.maxWidth = 'none';
+    element.style.margin = '0px'; 
     element.style.boxShadow = 'none';
+    
+    // 3. [2,3페이지 상단 쏠림 해결] 내부 패딩을 없애고, html2pdf 옵션으로 매 페이지 동일 여백 부여
+    element.style.padding = '0px';
+    
+    // 4. [날짜 겹침 완벽 해결] iOS 숫자 버그를 피하기 위해 폰트 강제 고정 및 절대 공백(&nbsp;) 적용
+    element.style.fontFamily = "'Malgun Gothic', sans-serif";
+    const dateCols = element.querySelectorAll('.date-col');
+    dateCols.forEach(col => {
+      col.dataset.origHtml = col.innerHTML; // 원래 글자 백업
+      col.innerHTML = col.innerHTML.replace(/ /g, '&nbsp;'); // 스페이스바를 절대 공백으로 치환
+    });
 
     const opt = {
-      margin: 0, // PDF 자체 여백을 0으로 만들어 캡처 엔진의 계산 오류 방지
+      margin: [15, 10, 15, 10], // 모든 페이지에 상단 15mm, 하단 15mm 등 동일한 여백 강제 생성
       filename: '공개강연계획표.pdf',
       image: { type: 'jpeg', quality: 1 },
       html2canvas: { 
         scale: 2, 
         useCORS: true, 
-        windowWidth: 794, // 강제 너비 고정으로 잘림 방지
+        windowWidth: 800, // 캔버스 너비를 800으로 고정하여 오른쪽 잘림 100% 방지
+        width: 800,
         scrollX: 0,
         scrollY: 0
       }, 
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'] }
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
     
     alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 파일로 저장하세요.");
     
     html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
-      // 5. 캡처 완료 즉시 모든 속성을 원래의 완벽한 PC 상태로 100% 복구
+      // 5. 캡처 완료 즉시 모든 속성을 원래의 완벽한 PC 상태로 100% 원상 복구
       element.style.width = originalWidth;
       element.style.maxWidth = originalMaxWidth;
       element.style.padding = originalPadding;
       element.style.margin = originalMargin;
       element.style.boxShadow = originalBoxShadow;
+      element.style.fontFamily = originalFontFamily;
       overlay.style.overflow = originalOverflow;
-      overlay.style.position = originalOverlayPosition;
+      
+      dateCols.forEach(col => {
+        if(col.dataset.origHtml) col.innerHTML = col.dataset.origHtml; // 날짜 공백 원상 복구
+      });
+      
       controls.style.display = 'flex'; 
       
       const file = new File([pdfBlob], '공개강연계획표.pdf', { type: 'application/pdf' });
@@ -1733,18 +1743,23 @@ function triggerPrint() {
         html2pdf().set(opt).from(element).save();
       }
     }).catch(function() {
-      // 에러 발생 시에도 화면 완벽 복구
+      // 에러 발생 시에도 무조건 PC 화면 100% 원상 복구
       element.style.width = originalWidth;
       element.style.maxWidth = originalMaxWidth;
       element.style.padding = originalPadding;
       element.style.margin = originalMargin;
       element.style.boxShadow = originalBoxShadow;
+      element.style.fontFamily = originalFontFamily;
       overlay.style.overflow = originalOverflow;
-      overlay.style.position = originalOverlayPosition;
+      
+      dateCols.forEach(col => {
+        if(col.dataset.origHtml) col.innerHTML = col.dataset.origHtml;
+      });
+      
       controls.style.display = 'flex'; 
     });
   } else {
-    // PC에서는 스크립트의 간섭을 일절 받지 않고 브라우저 순정 인쇄 기능만 작동합니다! (절대 건드리지 않음)
+    // [PC 내보내기 철통 보안] PC에서는 오직 완벽하게 세팅된 순정 인쇄 기능만 사용합니다!
     window.print();
   }
 }
