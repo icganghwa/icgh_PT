@@ -70,7 +70,7 @@
     }
 
  /* =========================================
-       [완벽 복구 및 최적화] 인쇄 및 PDF 내보내기 전용 스타일 
+       [완벽 원본 복구] 인쇄 및 PDF 내보내기 전용 스타일 
        ========================================= */
     #printOverlay { 
       display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
@@ -93,15 +93,13 @@
     #printContent th { background-color: #ffffff !important; font-weight: bold; font-size: 9.5pt; padding: 4px 1px; height: 36px !important; }
     #printContent tr { height: 36px !important; page-break-inside: avoid; } 
     
-    /* 스마트폰 날짜 겹침 방지 및 너비 안정화 */
-    #printContent .date-col { font-size: 8.5pt; white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: 0px !important; }
+    #printContent .date-col { font-size: 8.5pt; white-space: nowrap; }
     
-    /* [요청 반영] 50% 열 안에서 텍스트가 잘리지 않는 최대치인 11pt로 폰트 대폭 확대! */
-    #printContent .title-col { text-align: center; font-weight: normal; font-size: 11pt; letter-spacing: -0.6px; white-space: nowrap; overflow: hidden; }
+    /* [요청 반영] 표 너비를 절대 밀어내지 않도록 고정하고, 폰트 크기만 11pt로 확대 */
+    #printContent .title-col { text-align: center; font-weight: normal; font-size: 11pt; letter-spacing: -0.5px; white-space: nowrap; overflow: hidden; text-overflow: clip; }
     
     #printContent .special-bold { font-weight: bold !important; color: #000 !important; }
     #printContent .special-event td { background-color: #ffffff !important; }
-    
     .page-break { page-break-after: always; }
 
     @media print {
@@ -1593,8 +1591,9 @@ function exportToPDF() {
   let chunks = [];
   let exportData = displayList; 
   
-  for (let i = 0; i < exportData.length; i += 20) {
-      chunks.push(exportData.slice(i, i + 20));
+  // [원본 복구] 다시 완벽했던 1페이지당 22줄(1월 31일까지 출력) 셋팅으로 되돌림
+  for (let i = 0; i < exportData.length; i += 22) {
+      chunks.push(exportData.slice(i, i + 22));
   }
 
   chunks.forEach((chunk, chunkIndex) => {
@@ -1604,14 +1603,15 @@ function exportToPDF() {
       <table>
         <thead>
           <tr>
-            <th style="width: 10%;">날짜</th>
-            <th style="width: 50%;">제목</th>
-            <th style="width: 7%;">연사</th>
-            <th style="width: 9%;">회중</th>
-            <th style="width: 6%;">사회</th>
-            <th style="width: 6%;">낭독</th>
-            <th style="width: 6%;">기도</th>
-            <th style="width: 6%;">마이크</th>
+            <!-- [원본 복구] 가장 완벽했던 기존의 열 너비 비율로 100% 되돌림 -->
+            <th style="width: 8%;">날짜</th>
+            <th style="width: 44%;">제목</th>
+            <th style="width: 8%;">연사</th>
+            <th style="width: 10%;">회중</th>
+            <th style="width: 7.5%;">사회</th>
+            <th style="width: 7.5%;">낭독</th>
+            <th style="width: 7.5%;">기도</th>
+            <th style="width: 7.5%;">마이크</th>
           </tr>
         </thead>
         <tbody>
@@ -1626,13 +1626,9 @@ function exportToPDF() {
       let micHTML = [item.mic1, item.mic2].filter(Boolean).join('<br>') || '';
       let boldClass = isSpecial ? 'special-bold' : '';
 
-      // [핵심] 모바일에서 날짜 숫자가 절대 겹치지 않도록 '강제 공백(&nbsp;)' 치환 적용
-      let dateStr = formatDisplayDate(item.date) || '';
-      dateStr = dateStr.replace(' ', '&nbsp;');
-
       html += `
         <tr${trClass}>
-          <td class="date-col ${boldClass}">${dateStr}</td>
+          <td class="date-col ${boldClass}">${formatDisplayDate(item.date) || ''}</td>
           <td class="title-col ${boldClass}">${titleHTML}</td>
           <td>${item.speaker || ''}</td>
           <td>${item.congregation || ''}</td>
@@ -1650,8 +1646,7 @@ function exportToPDF() {
     `;
 
     if (chunkIndex < chunks.length - 1) {
-        // [핵심] 다음장 제목이 하단에 끌려오지 않도록 PDF 전용 강제 절단선 삽입
-        html += `<div class="html2pdf__page-break page-break"></div>`;
+        html += `<div class="page-break"></div>`;
     }
   });
 
@@ -1665,6 +1660,7 @@ function closePrintView() {
   document.getElementById('printContent').innerHTML = '';
 }
 
+// [원본 복구] 모바일 관련 실험 코드를 지우고 초기 상태로 되돌림
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1672,43 +1668,20 @@ function triggerPrint() {
   if ((isStandalone || isMobile) && typeof html2pdf !== 'undefined') {
     const element = document.getElementById('printContent');
     const controls = document.getElementById('printControlsBar');
-    const overlay = document.getElementById('printOverlay');
     
-    window.scrollTo(0, 0);
     controls.style.display = 'none';
-    
-    const originalWidth = element.style.width;
-    const originalMaxWidth = element.style.maxWidth;
-    const originalOverflow = overlay.style.overflow;
-    
-    overlay.style.overflow = 'visible';
-    
-    element.style.width = '794px';
-    element.style.maxWidth = '794px';
     
     const opt = {
       margin: [10, 5, 10, 5], 
       filename: '공개강연계획표.pdf',
       image: { type: 'jpeg', quality: 1 },
-      html2canvas: { 
-        scale: 2, 
-        useCORS: true, 
-        windowWidth: 794,
-        width: 794,
-        scrollX: 0,
-        scrollY: 0,
-        letterRendering: true // 글자 렌더링 품질을 높여 겹침 추가 차단
-      }, 
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'] } // 강제 절단선을 완벽하게 인식하도록 세팅
+      html2canvas: { scale: 2, useCORS: true }, 
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
     
-    alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 프린터로 보내거나 카톡으로 저장하세요.");
+    alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 프린터로 보내거나 저장하세요.");
     
     html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
-      element.style.width = originalWidth;
-      element.style.maxWidth = originalMaxWidth;
-      overlay.style.overflow = originalOverflow;
       controls.style.display = 'flex'; 
       
       const file = new File([pdfBlob], '공개강연계획표.pdf', { type: 'application/pdf' });
@@ -1723,13 +1696,10 @@ function triggerPrint() {
         html2pdf().set(opt).from(element).save();
       }
     }).catch(function() {
-      element.style.width = originalWidth;
-      element.style.maxWidth = originalMaxWidth;
-      overlay.style.overflow = originalOverflow;
       controls.style.display = 'flex'; 
     });
   } else {
-    // PC에서는 스크립트 개입 없이 브라우저 자체의 완벽한 인쇄 기능(window.print)만 수행
+    // PC에서는 오직 완벽하게 세팅된 순정 인쇄 기능만 사용
     window.print();
   }
 }
