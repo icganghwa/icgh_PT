@@ -1658,56 +1658,57 @@ function closePrintView() {
   document.getElementById('printContent').innerHTML = '';
 }
 
-// 스마트폰 캡처 시 발생하는 버그(겹침, 잘림, 쏠림)를 캡처 순간에만 싹 고치고 원상복구하는 스마트 로직
+// PC 인쇄 기능은 100% 보존하고, 스마트폰 우측 쏠림 및 하단 끌림만 해결한 최종 캡처 로직
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   
+  // 모바일 환경에서만 실행되는 PDF 캡처 로직
   if ((isStandalone || isMobile) && typeof html2pdf !== 'undefined') {
     const element = document.getElementById('printContent');
     const controls = document.getElementById('printControlsBar');
     const overlay = document.getElementById('printOverlay');
     
+    // 1. 화면 스크롤을 맨 위로 올려서 캡처 시작점 고정
     window.scrollTo(0, 0);
     controls.style.display = 'none';
     
-    // 1. 기존의 PC용 디자인 속성 백업 (캡처 후 완벽 복구용)
+    // 2. PC 원본 디자인 속성 백업 (캡처 후 완벽 원상복구용)
+    const originalPosition = element.style.position;
+    const originalLeft = element.style.left;
+    const originalTop = element.style.top;
     const originalWidth = element.style.width;
     const originalMaxWidth = element.style.maxWidth;
     const originalPadding = element.style.padding;
     const originalMargin = element.style.margin;
     const originalBoxShadow = element.style.boxShadow;
-    const originalFont = element.style.fontFamily;
     const originalOverflow = overlay.style.overflow;
-    const originalPosition = overlay.style.position;
     
-    // 2. [오른쪽 짤림 완벽 해결] 스마트폰 화면 한계를 무시하고 강제로 800px 전체 표를 펼침
+    // 3. [우측 쏠림 완벽 해결] 위치를 강제로 (0,0)으로 고정하고 외부 여백을 없앰
     overlay.style.overflow = 'visible';
-    overlay.style.position = 'absolute';
-    element.style.width = '800px';
-    element.style.maxWidth = 'none';
-    
-    // 3. [상하 쏠림 및 다음장 끌림 완벽 해결] 이중 여백이 생기지 않도록 내부 패딩을 0으로 제거
-    element.style.padding = '0px';
+    element.style.position = 'absolute';
+    element.style.left = '0px';
+    element.style.top = '0px';
     element.style.margin = '0px';
+    
+    // 4. [하단 끌림 완벽 해결] A4 사이즈(794px) 고정 및 내부 여백으로만 간격 조정
+    element.style.width = '794px';
+    element.style.maxWidth = '794px';
+    element.style.padding = '15mm 10mm'; // PDF 엔진 대신 표 내부에 여백을 줘서 쏠림 원천 차단
     element.style.boxShadow = 'none';
 
-    // 4. [날짜 숫자 겹침 완벽 해결] iOS 캡처 버그 방지를 위해 기본 폰트(Arial)로 1초간 임시 변환
-    element.style.fontFamily = 'Arial, sans-serif'; 
-
     const opt = {
-      margin: [15, 10, 15, 10], // PDF 상하좌우 여백을 엔진에서 정확히 15mm/10mm로 분배
+      margin: 0, // [핵심] pdf 자체 여백을 0으로 만들어 캡처 엔진의 계산 오류(우측 쏠림) 방지
       filename: '공개강연계획표.pdf',
       image: { type: 'jpeg', quality: 1 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        windowWidth: 800,
-        width: 800,
+      html2canvas: { 
+        scale: 2, 
+        useCORS: true, 
+        windowWidth: 794,
+        width: 794,
         scrollX: 0,
-        scrollY: 0,
-        letterRendering: true
-      },
+        scrollY: 0
+      }, 
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
       pagebreak: { mode: ['css', 'legacy'] }
     };
@@ -1715,19 +1716,19 @@ function triggerPrint() {
     alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 파일로 저장하세요.");
     
     html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
-      // 5. 캡처 완료 즉시 원래 디자인(PC 완벽 셋팅)으로 100% 원상 복구
+      // 5. 캡처 완료 즉시 모든 속성을 원래의 완벽한 PC 상태로 100% 복구
+      element.style.position = originalPosition;
+      element.style.left = originalLeft;
+      element.style.top = originalTop;
       element.style.width = originalWidth;
       element.style.maxWidth = originalMaxWidth;
       element.style.padding = originalPadding;
       element.style.margin = originalMargin;
       element.style.boxShadow = originalBoxShadow;
-      element.style.fontFamily = originalFont;
       overlay.style.overflow = originalOverflow;
-      overlay.style.position = originalPosition;
       controls.style.display = 'flex'; 
       
       const file = new File([pdfBlob], '공개강연계획표.pdf', { type: 'application/pdf' });
-      
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         navigator.share({
           files: [file],
@@ -1738,18 +1739,20 @@ function triggerPrint() {
         html2pdf().set(opt).from(element).save();
       }
     }).catch(function() {
+      // 에러 발생 시에도 화면 완벽 복구
+      element.style.position = originalPosition;
+      element.style.left = originalLeft;
+      element.style.top = originalTop;
       element.style.width = originalWidth;
       element.style.maxWidth = originalMaxWidth;
       element.style.padding = originalPadding;
       element.style.margin = originalMargin;
       element.style.boxShadow = originalBoxShadow;
-      element.style.fontFamily = originalFont;
       overlay.style.overflow = originalOverflow;
-      overlay.style.position = originalPosition;
       controls.style.display = 'flex'; 
     });
   } else {
-    // PC에서는 오직 완벽하게 세팅된 순정 인쇄 기능만 사용 (수정 절대 안함)
+    // PC에서는 스크립트의 간섭을 일절 받지 않고 브라우저 순정 인쇄 기능만 작동합니다!
     window.print();
   }
 }
