@@ -1658,83 +1658,72 @@ function closePrintView() {
   document.getElementById('printContent').innerHTML = '';
 }
 
-// PC 인쇄 기능은 100% 보존하고, 스마트폰 자간 버그/잘림/끌림 현상만 핀셋으로 완벽하게 해결한 코드
+// PC 인쇄 기능은 100% 철통 보존하고, 스마트폰 에러를 복사본(Clone) 생성 방식으로 완벽 차단한 최종 코드
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   
   if ((isStandalone || isMobile) && typeof html2pdf !== 'undefined') {
-    const element = document.getElementById('printContent');
+    const originalElement = document.getElementById('printContent');
     const controls = document.getElementById('printControlsBar');
     
-    // 화면을 맨 위로 올려 캡처 시작점 고정
-    window.scrollTo(0, 0);
     controls.style.display = 'none';
     
-    // 1. PC 원본 속성 철저히 백업 (캡처 후 완벽 원상복구용)
-    const originalWidth = element.style.width;
-    const originalMaxWidth = element.style.maxWidth;
-    const originalPosition = element.style.position;
-    const originalPadding = element.style.padding;
-    const originalMargin = element.style.margin;
+    // [핵심 해결책] 스마트폰 화면을 직접 변형하면 하얀 화면이나 짤림 에러가 발생하므로,
+    // 원본은 그대로 두고 'PDF 캡처 전용 복사본(Clone)'을 몰래 생성합니다.
+    const clone = originalElement.cloneNode(true);
     
-    // 2. [오른쪽 짤림 완벽 해결] 가로폭을 1024px(PC사이즈)로 강제로 넓혀 모든 열이 다 찍히게 함
-    element.style.position = 'absolute';
-    element.style.left = '0px';
-    element.style.top = '0px';
-    element.style.width = '1024px'; 
-    element.style.maxWidth = '1024px';
-    element.style.padding = '0px'; 
-    element.style.margin = '0px';
+    // 복사본을 화면 맨 뒤(z-index: -1)에 숨기고, 넓이를 PC 사이즈(1024px)로 쫙 폅니다. (우측 잘림 완벽 차단)
+    clone.style.position = 'absolute';
+    clone.style.top = '0px';
+    clone.style.left = '0px';
+    clone.style.width = '1024px';
+    clone.style.maxWidth = '1024px';
+    clone.style.padding = '0px';
+    clone.style.margin = '0px';
+    clone.style.backgroundColor = '#ffffff';
+    clone.style.zIndex = '-1';
+    clone.id = 'printContentClone'; // 복사본 구분을 위한 ID 부여
     
-    // 3. [날짜 겹침 완벽 해결] iOS 숫자 자간 버그를 피하기 위해 캡처 시에만 자간 강제 초기화
-    const dateCols = element.querySelectorAll('.date-col');
+    // [날짜 겹침 완벽 해결] 복사본의 날짜 글자 간격 버그(iOS)를 방지하기 위해 자간을 정상(normal)으로 초기화
+    const dateCols = clone.querySelectorAll('.date-col');
     dateCols.forEach(col => {
-      col.dataset.originalLetterSpacing = col.style.letterSpacing;
-      col.style.letterSpacing = 'normal'; // 버그 원인인 자간 축소 옵션 해제
+      col.style.letterSpacing = 'normal';
     });
-
-    // 4. [다음장 끌림 완벽 해결] html2pdf 전용 강제 분할 클래스를 페이지 끝마다 주입
-    const pageBreaks = element.querySelectorAll('.page-break');
+    
+    // [다음장 끌림 완벽 해결] 복사본의 페이지 나누기 요소에 html2pdf 전용 강제 분할 명령 주입
+    const pageBreaks = clone.querySelectorAll('.page-break');
     pageBreaks.forEach(pb => {
-      pb.classList.add('html2pdf__page-break'); 
+      pb.classList.add('html2pdf__page-break');
     });
-
-    // 5. PDF 생성 (1024px 폭으로 찍은 표를 A4 용지에 맞게 자동 축소시킴)
+    
+    // 완성된 복사본을 문서에 잠시 숨겨서 추가
+    document.body.appendChild(clone);
+    
+    // PDF 변환 옵션 세팅
     const opt = {
-      margin: [15, 10, 15, 10], // 상우하좌 균일한 여백
+      margin: [15, 10, 15, 10], // 상하좌우 여백을 균일하게 확보
       filename: '공개강연계획표.pdf',
       image: { type: 'jpeg', quality: 1 },
       html2canvas: { 
         scale: 2, 
         useCORS: true, 
-        windowWidth: 1024, // 엔진에 1024px 화면이라고 인식시킴
-        scrollX: 0,
-        scrollY: 0
+        windowWidth: 1024, // 캡처 카메라 렌즈 크기를 1024px로 맞춰서 잘림 원천 차단
+        width: 1024,
+        scrollY: 0,
+        scrollX: 0
       }, 
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'] } // 강제 분할 인식 모드 켜기
+      pagebreak: { mode: ['css', 'legacy'] } // 강제 분할선 작동
     };
     
     alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 파일로 저장하세요.");
     
-    html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
-      // 6. 캡처 완료 즉시 모든 속성을 원래의 완벽한 PC 상태로 100% 원상 복구!
-      element.style.width = originalWidth;
-      element.style.maxWidth = originalMaxWidth;
-      element.style.position = originalPosition;
-      element.style.left = '';
-      element.style.top = '';
-      element.style.padding = originalPadding;
-      element.style.margin = originalMargin;
+    // 화면에 보이는 원본 대신, 뒤에 숨겨둔 완벽한 복사본(clone)을 사진 찍음
+    html2pdf().set(opt).from(clone).outputPdf('blob').then(function(pdfBlob) {
       
-      dateCols.forEach(col => {
-        col.style.letterSpacing = col.dataset.originalLetterSpacing || ''; // 날짜 자간 복구
-      });
-      pageBreaks.forEach(pb => {
-        pb.classList.remove('html2pdf__page-break'); // 강제 분할 클래스 제거
-      });
-      
+      // 캡처가 끝나면 복사본을 삭제하고 버튼을 다시 표시
+      document.body.removeChild(clone);
       controls.style.display = 'flex'; 
       
       const file = new File([pdfBlob], '공개강연계획표.pdf', { type: 'application/pdf' });
@@ -1745,29 +1734,16 @@ function triggerPrint() {
           text: '강화 회중 공개강연 계획표 파일입니다.'
         }).catch((error) => console.log('공유 취소됨', error));
       } else {
-        html2pdf().set(opt).from(element).save();
+        html2pdf().set(opt).from(clone).save();
       }
     }).catch(function() {
-      // 에러 시에도 무조건 PC 화면 100% 원상 복구
-      element.style.width = originalWidth;
-      element.style.maxWidth = originalMaxWidth;
-      element.style.position = originalPosition;
-      element.style.left = '';
-      element.style.top = '';
-      element.style.padding = originalPadding;
-      element.style.margin = originalMargin;
-      
-      dateCols.forEach(col => {
-        col.style.letterSpacing = col.dataset.originalLetterSpacing || '';
-      });
-      pageBreaks.forEach(pb => {
-        pb.classList.remove('html2pdf__page-break');
-      });
-      
+      // 혹시라도 에러가 나면 복사본 찌꺼기 삭제
+      document.body.removeChild(clone);
       controls.style.display = 'flex'; 
     });
+    
   } else {
-    // [PC 내보내기 절대 보호] PC에서는 스크립트 개입 없이 순정 인쇄 기능만 무조건 작동!
+    // [PC 내보내기 절대 보호] PC에서는 이 자바스크립트가 무시되며, 브라우저 순정 인쇄 기능만 안전하게 작동합니다!
     window.print();
   }
 }
