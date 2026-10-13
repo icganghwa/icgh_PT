@@ -1658,7 +1658,8 @@ function closePrintView() {
   document.getElementById('printContent').innerHTML = '';
 }
 
-// PC 인쇄 기능은 100% 철통 보존하고, 스마트폰 우측 잘림/페이지 쏠림/잘림을 완벽하게 해결한 최종 코드
+// PC 인쇄 기능은 100% 철통 보존하고, 스마트폰 우측 잘림/페이지 쏠림을 
+// 실시간 화면 조작 방식(인라인 스타일)으로 완벽하게 차단한 최종 코드
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1668,73 +1669,93 @@ function triggerPrint() {
     const controls = document.getElementById('printControlsBar');
     const overlay = document.getElementById('printOverlay');
     
-    // 1. 화면 스크롤을 맨 위로 올려 캡처 엉뚱한 시작 방지
+    // 1. 캡처 엉뚱한 시작 방지
     window.scrollTo(0, 0);
     controls.style.display = 'none';
     
-    // 2. 스마트폰 전용 강제 스타일 주입 (동적 생성)
-    const mobileStyle = document.createElement('style');
-    mobileStyle.id = 'tempMobilePrintStyle';
-    mobileStyle.innerHTML = `
-      #printOverlay {
-        overflow: visible !important;
-        position: static !important;
-      }
-      #printContent {
-        width: 100% !important; /* 고정 px 대신 100% 사용 */
-        max-width: 100% !important;
-        margin: 0 auto !important; /* 완벽한 중앙 정렬 */
-        box-sizing: border-box !important;
-      }
-      #printContent table {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 auto !important;
-        table-layout: auto !important; /* 내용에 맞게 열 너비 자동 조절 */
-      }
-      #printContent .date-col {
-        font-family: Arial, sans-serif !important;
-        letter-spacing: 0px !important;
-        white-space: nowrap !important; /* 날짜 줄바꿈 방지 */
-      }
-      /* 페이지 강제 분할 설정 강화 */
-      #printContent .page-break {
-        page-break-before: always !important;
-        break-before: page !important;
-      }
-      #printContent tr {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-      }
-    `;
-    document.head.appendChild(mobileStyle);
+    // 2. PC 원본 속성 철저히 백업
+    const origOverlayOverflow = overlay.style.overflow;
+    const origOverlayPosition = overlay.style.position;
+    const origElementWidth = element.style.width;
+    const origElementMaxWidth = element.style.maxWidth;
+    const origElementMargin = element.style.margin;
+    
+    // 3. [우측 짤림 완벽 해결] 컨테이너를 1200px로 넉넉하게 확장
+    overlay.style.overflow = 'visible';
+    overlay.style.position = 'static';
+    element.style.width = '1200px';
+    element.style.maxWidth = '1200px';
+    element.style.margin = '0 auto';
+    
+    // 3-1. [표 내부 강제 확장] 컨테이너에 맞춰 테이블 자체도 100%로 펴지도록 백업 후 조작
+    const tables = element.querySelectorAll('table');
+    tables.forEach(tbl => {
+      tbl.dataset.origWidth = tbl.style.width;
+      tbl.dataset.origMaxWidth = tbl.style.maxWidth;
+      tbl.style.width = '100%';
+      tbl.style.maxWidth = '100%';
+    });
+    
+    // 4. [날짜 겹침 해결] 날짜 열 속성 백업 및 줄바꿈 방지 적용
+    const dateCols = element.querySelectorAll('.date-col');
+    dateCols.forEach(col => {
+      col.dataset.origFont = col.style.fontFamily;
+      col.dataset.origSpacing = col.style.letterSpacing;
+      col.dataset.origWhiteSpace = col.style.whiteSpace;
+      
+      col.style.fontFamily = 'Arial, sans-serif';
+      col.style.letterSpacing = '0px';
+      col.style.whiteSpace = 'nowrap'; // 날짜 두 줄 쪼개짐 원천 차단
+    });
+    
+    // 5. [다음장 끌림 방지] 기존처럼 html2pdf 전용 분할 명령 주입
+    const pageBreaks = element.querySelectorAll('.page-break');
+    pageBreaks.forEach(pb => pb.classList.add('html2pdf__page-break'));
 
-    // 3. PDF 엔진 옵션 세팅
+    // 6. PDF 엔진 옵션 세팅 (너비를 1200px로 맞춰서 우측 쏠림 방지, 표 행 분할 금지)
     const opt = {
-      margin: [10, 10, 10, 10], // 상하좌우 여백
+      margin: [10, 10, 10, 10], // 여백
       filename: '공개강연계획표.pdf',
       image: { type: 'jpeg', quality: 1 },
       html2canvas: { 
         scale: 2, 
         useCORS: true, 
-        // 렌더링 시야각을 충분히 넓게 설정 (모바일 기기 너비에 구애받지 않도록)
-        windowWidth: 1000, 
+        windowWidth: 1200, // 캡처 렌즈의 시야각을 강제로 넓힘 (핵심)
+        width: 1200,
         scrollX: 0,
         scrollY: 0
       }, 
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      // 페이지 분할 모드 강화: CSS의 page-break 속성을 우선적으로 따르도록 설정
-      pagebreak: { mode: ['css', 'legacy'], before: '.page-break', avoid: 'tr' } 
+      pagebreak: { mode: ['css', 'legacy'], avoid: 'tr' } // [행 잘림 방지] 표 중간이 잘려 다음 페이지로 넘어가는 현상 방지
+    };
+    
+    // 7. 완벽한 원상 복구를 위한 공통 함수
+    const restoreUI = () => {
+      overlay.style.overflow = origOverlayOverflow;
+      overlay.style.position = origOverlayPosition;
+      element.style.width = origElementWidth;
+      element.style.maxWidth = origElementMaxWidth;
+      element.style.margin = origElementMargin;
+      
+      tables.forEach(tbl => {
+        tbl.style.width = tbl.dataset.origWidth || '';
+        tbl.style.maxWidth = tbl.dataset.origMaxWidth || '';
+      });
+      
+      dateCols.forEach(col => {
+        col.style.fontFamily = col.dataset.origFont || '';
+        col.style.letterSpacing = col.dataset.origSpacing || '';
+        col.style.whiteSpace = col.dataset.origWhiteSpace || '';
+      });
+      
+      pageBreaks.forEach(pb => pb.classList.remove('html2pdf__page-break'));
+      controls.style.display = 'flex'; 
     };
     
     alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 파일로 저장하세요.");
     
     html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
-      // 4. 생성 완료 후 동적 스타일 제거 및 원상 복구
-      const injectedStyle = document.getElementById('tempMobilePrintStyle');
-      if (injectedStyle) injectedStyle.remove();
-      
-      controls.style.display = 'flex'; 
+      restoreUI(); // 생성 성공 시 즉시 원상 복구
       
       const file = new File([pdfBlob], '공개강연계획표.pdf', { type: 'application/pdf' });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -1747,15 +1768,11 @@ function triggerPrint() {
         html2pdf().set(opt).from(element).save();
       }
     }).catch(function() {
-      // 에러 시에도 원상 복구
-      const injectedStyle = document.getElementById('tempMobilePrintStyle');
-      if (injectedStyle) injectedStyle.remove();
-      
-      controls.style.display = 'flex'; 
+      restoreUI(); // 에러 발생 시에도 무조건 원상 복구
     });
     
   } else {
-    // [PC 내보내기 절대 보호]
+    // [PC 내보내기 절대 보호] PC에서는 스크립트 개입 없이 브라우저 순정 인쇄 기능만 무조건 작동!
     window.print();
   }
 }
