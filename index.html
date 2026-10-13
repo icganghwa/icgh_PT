@@ -1658,83 +1658,104 @@ function closePrintView() {
   document.getElementById('printContent').innerHTML = '';
 }
 
-// PC 인쇄 기능은 100% 철통 보존하고, 아이폰 우측 잘림과 페이지 분할 무시 현상을 
-// '독립된 복제본(Clone)' 방식으로 완벽하게 차단한 최종 완성 코드
+// PC 인쇄 100% 보존, 아이폰 백화현상(하얀 화면) 및 레이아웃 오류 완벽 해결 코드
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   
   if ((isStandalone || isMobile) && typeof html2pdf !== 'undefined') {
-    const originalElement = document.getElementById('printContent');
+    const element = document.getElementById('printContent');
+    const controls = document.getElementById('printControlsBar');
+    const overlay = document.getElementById('printOverlay');
     
-    // 1. [핵심] 라이브 화면을 건드리지 않고, 메모리 상에 완벽한 복제본(Clone)을 만듭니다.
-    // 기존 화면의 Flexbox 제한이나 모바일 화면 너비 제약을 완전히 무시하기 위함입니다.
-    const clone = originalElement.cloneNode(true);
-    clone.id = 'pdfCloneWrapper';
+    // 1. 캡처 시야 확보를 위해 맨 위로 스크롤
+    window.scrollTo(0, 0);
+    controls.style.display = 'none';
     
-    // 2. 복제본을 A4 크기(900px)에 맞춘 완전한 Block 요소로 강제 설정하여 화면 최상단에 띄웁니다.
-    // (Flex가 아닌 Block이어야만 다음 장으로 넘어가는 page-break가 정상 작동합니다)
-    clone.style.cssText = `
-      position: absolute;
-      top: 0;
-      left: 0;
+    // 2. [백화현상 방지] Clone을 쓰지 않고 현재 상태의 CSS만 백업하여 조작합니다.
+    const origBodyCss = document.body.style.cssText;
+    const origOverlayCss = overlay ? overlay.style.cssText : '';
+    const origElementCss = element.style.cssText;
+    
+    // 3. [페이지 분할 무시 해결] 부모 태그들의 flex 속성을 강제 해제 (block으로 변경)
+    // 동시에 [우측 잘림 해결]을 위해 부모 태그들까지 모조리 최소 900px로 쫙 펴줍니다.
+    document.body.style.cssText += 'display: block !important; overflow: visible !important; min-width: 900px !important;';
+    
+    if (overlay) {
+      overlay.style.cssText += 'display: block !important; overflow: visible !important; position: static !important; min-width: 900px !important;';
+    }
+    
+    element.style.cssText += `
+      display: block !important;
       width: 900px !important;
+      min-width: 900px !important;
       max-width: 900px !important;
-      display: block !important; 
-      background-color: white;
-      margin: 0;
-      padding: 10px;
-      box-sizing: border-box;
-      z-index: 9999; /* 캡처되는 0.5초 동안만 화면 덮기 */
+      margin: 0 auto !important;
+      overflow: visible !important;
     `;
     
-    // 3. 복제본 내부의 테이블 폭 100% 꽉 채우기 및 긴 텍스트 줄바꿈 허용
-    const tables = clone.querySelectorAll('table');
-    tables.forEach(tbl => {
-      tbl.style.cssText = 'width: 100% !important; max-width: 100% !important; table-layout: auto !important; word-break: keep-all !important; margin: 0 auto !important;';
+    // 4. 테이블 내부 긴 글씨 자동 줄바꿈으로 표 팽창 방지
+    const tables = element.querySelectorAll('table');
+    const origTableCss = [];
+    tables.forEach((tbl, index) => {
+      origTableCss[index] = tbl.style.cssText;
+      tbl.style.cssText += 'width: 100% !important; table-layout: auto !important; word-break: break-word !important; white-space: normal !important; margin: 0 auto !important;';
     });
     
-    // 4. 날짜 두 줄 쪼개짐 방지
-    const dateCols = clone.querySelectorAll('.date-col');
-    dateCols.forEach(col => {
-      col.style.cssText = 'font-family: Arial, sans-serif !important; letter-spacing: 0px !important; white-space: nowrap !important;';
+    // 5. 날짜 두 줄 쪼개짐 방지
+    const dateCols = element.querySelectorAll('.date-col');
+    const origDateCss = [];
+    dateCols.forEach((col, index) => {
+      origDateCss[index] = col.style.cssText;
+      col.style.cssText += 'font-family: Arial, sans-serif !important; letter-spacing: 0px !important; white-space: nowrap !important;';
     });
     
-    // 5. [페이지 끌림 완벽 방지] 복제본 내의 분할선에 강력한 분할(Break) 명령 주입
-    const pageBreaks = clone.querySelectorAll('.page-break');
-    pageBreaks.forEach(pb => {
-      pb.style.cssText = 'display: block !important; height: 0px !important; margin: 0 !important; page-break-before: always !important; clear: both !important;';
+    // 6. [페이지 분할 명령 주입]
+    const pageBreaks = element.querySelectorAll('.page-break');
+    const origPageBreakCss = [];
+    pageBreaks.forEach((pb, index) => {
+      origPageBreakCss[index] = pb.style.cssText;
+      pb.style.cssText += 'display: block !important; height: 10px !important; page-break-before: always !important;';
       pb.classList.add('html2pdf__page-break');
     });
 
-    // 6. 세팅된 복제본을 현재 화면(body)에 임시로 붙입니다.
-    document.body.appendChild(clone);
+    // 7. 완벽한 원상 복구 함수
+    const restoreUI = () => {
+      document.body.style.cssText = origBodyCss;
+      if (overlay) overlay.style.cssText = origOverlayCss;
+      element.style.cssText = origElementCss;
+      
+      tables.forEach((tbl, index) => { tbl.style.cssText = origTableCss[index]; });
+      dateCols.forEach((col, index) => { col.style.cssText = origDateCss[index]; });
+      pageBreaks.forEach((pb, index) => { 
+        pb.style.cssText = origPageBreakCss[index];
+        pb.classList.remove('html2pdf__page-break'); 
+      });
+      controls.style.display = 'flex'; 
+    };
     
     alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 파일로 저장하세요.");
     
-    // 7. PDF 옵션 세팅 (렌더링 대상을 900px로 세팅된 clone으로 지정)
-    const opt = {
-      margin: [10, 10, 10, 10],
-      filename: '공개강연계획표.pdf',
-      image: { type: 'jpeg', quality: 1 },
-      html2canvas: { 
-        scale: 2, 
-        useCORS: true, 
-        windowWidth: 900,
-        width: 900,
-        scrollX: 0,
-        scrollY: 0
-      }, 
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      // mode 설정과 before 옵션을 추가해 .page-break 태그에서 무조건 잘리도록 강제
-      pagebreak: { mode: ['css', 'legacy'], avoid: 'tr', before: '.page-break' } 
-    };
-
-    // 8. 브라우저가 복제본을 화면에 그릴 시간을 0.3초 준 뒤 캡처 실행
+    // 8. 0.5초 대기 후 안전하게 캡처 진행
     setTimeout(() => {
-      html2pdf().set(opt).from(clone).outputPdf('blob').then(function(pdfBlob) {
-        // [원상 복구] 캡처가 끝나면 임시로 붙였던 복제본을 즉시 파기합니다. (원본 화면은 아무 피해 없음)
-        if (document.body.contains(clone)) document.body.removeChild(clone);
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename: '공개강연계획표.pdf',
+        image: { type: 'jpeg', quality: 1 },
+        html2canvas: { 
+          scale: 1.5, // 아이폰 튕김(백화현상)을 막기 위해 scale을 최적화
+          useCORS: true, 
+          windowWidth: 900,
+          width: 900,
+          scrollX: 0,
+          scrollY: 0
+        }, 
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'], avoid: 'tr', before: '.page-break' } 
+      };
+
+      html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
+        restoreUI(); // 생성 즉시 원상복구
         
         const file = new File([pdfBlob], '공개강연계획표.pdf', { type: 'application/pdf' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -1744,25 +1765,16 @@ function triggerPrint() {
             text: '강화 회중 공개강연 계획표 파일입니다.'
           }).catch((error) => console.log('공유 취소됨', error));
         } else {
-          // 공유 미지원 기기에서는 직접 다운로드
-          const url = window.URL.createObjectURL(pdfBlob);
-          const a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = url;
-          a.download = '공개강연계획표.pdf';
-          document.body.appendChild(a);
-          a.click();
-          window.URL.revokeObjectURL(url);
-          document.body.removeChild(a);
+          html2pdf().set(opt).from(element).save();
         }
       }).catch(function(error) {
         console.error('PDF 생성 에러:', error);
-        if (document.body.contains(clone)) document.body.removeChild(clone);
+        restoreUI(); 
       });
-    }, 300);
+    }, 500);
     
   } else {
-    // [PC 내보내기 절대 보호] PC 환경은 스크립트 개입 없이 순정 인쇄
+    // [PC 내보내기 절대 보호]
     window.print();
   }
 }
