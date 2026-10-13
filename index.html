@@ -1658,7 +1658,7 @@ function closePrintView() {
   document.getElementById('printContent').innerHTML = '';
 }
 
-// PC 인쇄 기능은 100% 철통 보존하고, 스마트폰 우측 잘림/중앙 정렬/페이지 쏠림을 완벽하게 해결한 최종 코드
+// PC 인쇄 기능은 100% 철통 보존하고, 스마트폰 우측 잘림/페이지 쏠림/잘림을 완벽하게 해결한 최종 코드
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1668,10 +1668,11 @@ function triggerPrint() {
     const controls = document.getElementById('printControlsBar');
     const overlay = document.getElementById('printOverlay');
     
+    // 1. 화면 스크롤을 맨 위로 올려 캡처 엉뚱한 시작 방지
     window.scrollTo(0, 0);
     controls.style.display = 'none';
     
-    // 스마트폰 전용 강제 스타일 (950px 최적화, 모든 열 포함, 완벽한 중앙 정렬)
+    // 2. 스마트폰 전용 강제 스타일 주입 (동적 생성)
     const mobileStyle = document.createElement('style');
     mobileStyle.id = 'tempMobilePrintStyle';
     mobileStyle.innerHTML = `
@@ -1680,23 +1681,23 @@ function triggerPrint() {
         position: static !important;
       }
       #printContent {
-        width: 950px !important;
-        max-width: 950px !important;
-        margin: 0 auto !important;
+        width: 100% !important; /* 고정 px 대신 100% 사용 */
+        max-width: 100% !important;
+        margin: 0 auto !important; /* 완벽한 중앙 정렬 */
         box-sizing: border-box !important;
       }
-      /* 표 전체가 950px 공간 안에 꽉 차게 들어가며 모든 열이 잘리지 않도록 설정 */
       #printContent table {
         width: 100% !important;
         max-width: 100% !important;
         margin: 0 auto !important;
-        table-layout: auto !important;
+        table-layout: auto !important; /* 내용에 맞게 열 너비 자동 조절 */
       }
       #printContent .date-col {
         font-family: Arial, sans-serif !important;
         letter-spacing: 0px !important;
-        white-space: nowrap !important;
+        white-space: nowrap !important; /* 날짜 줄바꿈 방지 */
       }
+      /* 페이지 강제 분할 설정 강화 */
       #printContent .page-break {
         page-break-before: always !important;
         break-before: page !important;
@@ -1708,26 +1709,28 @@ function triggerPrint() {
     `;
     document.head.appendChild(mobileStyle);
 
-    // PDF 엔진 옵션 세팅
+    // 3. PDF 엔진 옵션 세팅
     const opt = {
-      margin: [10, 10, 10, 10], // 상하좌우 여백 최적화
+      margin: [10, 10, 10, 10], // 상하좌우 여백
       filename: '공개강연계획표.pdf',
       image: { type: 'jpeg', quality: 1 },
       html2canvas: { 
         scale: 2, 
         useCORS: true, 
-        windowWidth: 950, // 렌더링 시야각을 950px로 맞춰 우측 잘림 원천 봉쇄
-        width: 950,
+        // 렌더링 시야각을 충분히 넓게 설정 (모바일 기기 너비에 구애받지 않도록)
+        windowWidth: 1000, 
         scrollX: 0,
         scrollY: 0
       }, 
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'], avoid: 'tr' }
+      // 페이지 분할 모드 강화: CSS의 page-break 속성을 우선적으로 따르도록 설정
+      pagebreak: { mode: ['css', 'legacy'], before: '.page-break', avoid: 'tr' } 
     };
     
     alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 파일로 저장하세요.");
     
     html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
+      // 4. 생성 완료 후 동적 스타일 제거 및 원상 복구
       const injectedStyle = document.getElementById('tempMobilePrintStyle');
       if (injectedStyle) injectedStyle.remove();
       
@@ -1744,6 +1747,7 @@ function triggerPrint() {
         html2pdf().set(opt).from(element).save();
       }
     }).catch(function() {
+      // 에러 시에도 원상 복구
       const injectedStyle = document.getElementById('tempMobilePrintStyle');
       if (injectedStyle) injectedStyle.remove();
       
@@ -1751,7 +1755,7 @@ function triggerPrint() {
     });
     
   } else {
-    // [PC 내보내기 절대 보호] PC에서는 스크립트 개입 없이 브라우저 순정 인쇄 기능만 무조건 작동!
+    // [PC 내보내기 절대 보호]
     window.print();
   }
 }
