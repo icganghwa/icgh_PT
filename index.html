@@ -1659,7 +1659,7 @@ function closePrintView() {
 }
 
 // PC 인쇄 100% 보존.
-// 여백을 최소화하여 표 크기를 키우고, 1월 31일 행이 끊어지는 현상을 해결한 최종 코드
+// 2페이지 제목이 1페이지 하단에 끌려 나오는 현상을 완벽하게 차단한 최종 코드
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1668,22 +1668,20 @@ function triggerPrint() {
     const element = document.getElementById('printContent');
     const controls = document.getElementById('printControlsBar');
     
-    controls.style.display = 'none'; // 버튼 숨김
+    controls.style.display = 'none';
     
     alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 파일로 저장하세요.");
     
-    // [확대 효과 및 정렬 최적화] 
-    // 캔버스 기준폭을 780px로 살짝 줄여서 화면에 꽉 차게 렌더링 (글씨와 표가 커짐)
+    // 캔버스 기준폭 780px (크기 큼직하게 유지)
     const captureWidth = 780;
 
     const opt = {
-      // [여백 최소화] 상하좌우 여백을 5mm로 대폭 줄여 표가 최대한 크게 나오도록 수정
-      // 여백이 줄어들어 1페이지 하단 공간이 늘어나므로 '1월 31일' 행이 표에 정상적으로 연결됩니다.
+      // 상하좌우 5mm 여백 유지
       margin: [5, 5, 5, 5], 
       filename: '공개강연계획표.pdf',
       image: { type: 'jpeg', quality: 1 },
       html2canvas: { 
-        scale: 2, // 고해상도 유지
+        scale: 2, 
         useCORS: true, 
         windowWidth: captureWidth,
         width: captureWidth,
@@ -1692,7 +1690,6 @@ function triggerPrint() {
       }, 
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
       
-      // 가상 DOM 조작 (원본 화면 보호)
       onclone: function(clonedDoc) {
         const clonedElement = clonedDoc.getElementById('printContent');
         
@@ -1723,7 +1720,7 @@ function triggerPrint() {
             text-align: center !important;
             vertical-align: middle !important;
             word-break: break-word !important;
-            padding: 8px 4px !important; /* 위아래 패딩을 살짝 늘려 행 겹침 방지 */
+            padding: 8px 4px !important; 
           `;
         });
 
@@ -1735,24 +1732,38 @@ function triggerPrint() {
           `;
         });
         
+        // [핵심] 페이지 분할(끌림 방지) 설정 강화
+        // 페이지가 나뉘는 지점에 어떠한 잔여물도 남지 않도록 높이를 0으로 만들고 투명하게 처리합니다.
         const pageBreaks = clonedElement.querySelectorAll('.page-break');
         pageBreaks.forEach(pb => {
           pb.style.cssText += `
             display: block !important; 
-            height: 1px !important; 
+            height: 0px !important; 
+            line-height: 0px !important;
+            font-size: 0px !important;
+            color: transparent !important;
             margin: 0 !important;
             padding: 0 !important;
+            border: none !important;
             page-break-before: always !important;
+            page-break-after: always !important; /* 앞뒤로 확실하게 끊어줌 */
+            clear: both !important;
           `;
           pb.classList.add('html2pdf__page-break');
         });
+        
+        // 추가 안전장치: .page-break 바로 다음에 오는 제목(h1, h2, div 등) 태그가 위로 딸려오지 않도록 여백 초기화
+        const nextElements = clonedElement.querySelectorAll('.page-break + *');
+        nextElements.forEach(el => {
+            el.style.cssText += 'margin-top: 0 !important; padding-top: 0 !important;';
+        });
       },
-      pagebreak: { mode: ['css', 'legacy'], avoid: 'tr' } 
+      // pagebreak 모드를 더 강력하게 세팅
+      pagebreak: { mode: ['css', 'legacy'], avoid: 'tr', before: '.page-break' } 
     };
 
-    // 캡처 실행
     html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
-      controls.style.display = 'flex'; // 작업 완료 후 버튼 복구
+      controls.style.display = 'flex'; 
       
       const file = new File([pdfBlob], '공개강연계획표.pdf', { type: 'application/pdf' });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
