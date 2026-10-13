@@ -1658,8 +1658,8 @@ function closePrintView() {
   document.getElementById('printContent').innerHTML = '';
 }
 
-// PC 인쇄 100% 보존. 아이폰 표 우측 잘림과 좌우/상하 정렬 불균형 문제를
-// 캔버스 사이즈 완벽 동기화 및 내부 셀 강제 중앙 정렬로 해결한 최종 코드
+// PC 인쇄 100% 보존.
+// 여백을 최소화하여 표 크기를 키우고, 1월 31일 행이 끊어지는 현상을 해결한 최종 코드
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1668,35 +1668,34 @@ function triggerPrint() {
     const element = document.getElementById('printContent');
     const controls = document.getElementById('printControlsBar');
     
-    // 버튼 숨김
-    controls.style.display = 'none';
+    controls.style.display = 'none'; // 버튼 숨김
     
     alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 파일로 저장하세요.");
     
-    // [핵심 해결 포인트] PDF 캡처 가로 해상도 기준점 설정 (A4 비율에 꽉 차는 800px)
-    const captureWidth = 800;
+    // [확대 효과 및 정렬 최적화] 
+    // 캔버스 기준폭을 780px로 살짝 줄여서 화면에 꽉 차게 렌더링 (글씨와 표가 커짐)
+    const captureWidth = 780;
 
     const opt = {
-      // PDF 여백 설정: 좌우 여백을 10으로 동일하게 주어 1차 중앙 정렬
-      margin: [15, 10, 15, 10], 
+      // [여백 최소화] 상하좌우 여백을 5mm로 대폭 줄여 표가 최대한 크게 나오도록 수정
+      // 여백이 줄어들어 1페이지 하단 공간이 늘어나므로 '1월 31일' 행이 표에 정상적으로 연결됩니다.
+      margin: [5, 5, 5, 5], 
       filename: '공개강연계획표.pdf',
       image: { type: 'jpeg', quality: 1 },
       html2canvas: { 
-        scale: 1.5, // 아이폰 튕김(백화현상) 방지를 위한 최적 스케일
+        scale: 2, // 고해상도 유지
         useCORS: true, 
-        windowWidth: captureWidth, // 브라우저 가상 시야각 800px
-        width: captureWidth,       // 캡처할 실제 캔버스 영역 800px (이 둘을 완벽히 동기화해야 쏠림이 방지됨!)
+        windowWidth: captureWidth,
+        width: captureWidth,
         scrollX: 0,
         scrollY: 0
       }, 
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
       
-      // 가상 DOM 조작 (실제 스마트폰 화면은 100% 건드리지 않고 보호)
+      // 가상 DOM 조작 (원본 화면 보호)
       onclone: function(clonedDoc) {
         const clonedElement = clonedDoc.getElementById('printContent');
         
-        // 1. [좌우 정렬 및 잘림 원천 봉쇄] 
-        // 캡처 영역(800px)과 요소의 크기를 '단 1px의 오차도 없이' 똑같이 맞춥니다.
         clonedElement.style.cssText += `
           width: ${captureWidth}px !important;
           min-width: ${captureWidth}px !important;
@@ -1707,7 +1706,6 @@ function triggerPrint() {
           box-sizing: border-box !important;
         `;
         
-        // 2. 테이블 100% 확장 및 텍스트 줄바꿈 설정
         const tables = clonedElement.querySelectorAll('table');
         tables.forEach(tbl => {
           tbl.style.cssText += `
@@ -1719,18 +1717,16 @@ function triggerPrint() {
           `;
         });
         
-        // 3. [상하좌우 텍스트 밸런스 정렬] 모든 표 안의 글씨를 보기 좋게 정중앙에 배치
         const cells = clonedElement.querySelectorAll('th, td');
         cells.forEach(cell => {
           cell.style.cssText += `
             text-align: center !important;
             vertical-align: middle !important;
             word-break: break-word !important;
-            padding: 6px 4px !important;
+            padding: 8px 4px !important; /* 위아래 패딩을 살짝 늘려 행 겹침 방지 */
           `;
         });
 
-        // 4. 날짜 열 두 줄 쪼개짐 방지
         const dateCols = clonedElement.querySelectorAll('.date-col');
         dateCols.forEach(col => {
           col.style.cssText += `
@@ -1739,7 +1735,6 @@ function triggerPrint() {
           `;
         });
         
-        // 5. [페이지 끌림 완벽 분할] 
         const pageBreaks = clonedElement.querySelectorAll('.page-break');
         pageBreaks.forEach(pb => {
           pb.style.cssText += `
@@ -1757,7 +1752,7 @@ function triggerPrint() {
 
     // 캡처 실행
     html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
-      controls.style.display = 'flex'; // 작업 완료 후 버튼 다시 표시
+      controls.style.display = 'flex'; // 작업 완료 후 버튼 복구
       
       const file = new File([pdfBlob], '공개강연계획표.pdf', { type: 'application/pdf' });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
