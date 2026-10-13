@@ -1658,8 +1658,8 @@ function closePrintView() {
   document.getElementById('printContent').innerHTML = '';
 }
 
-// PC 인쇄 기능은 100% 보존하고, 아이폰 우측 잘림과 하얀 화면(백화 현상)을 
-// 메모리 최적화 및 상위 컨테이너 overflow 해제 방식으로 해결한 최종 코드
+// PC 인쇄 기능은 100% 보존하고, 아이폰 우측 잘림(테이블 팽창)과 
+// 페이지 분할 무시(Flex 충돌) 현상을 완벽하게 해결한 코드
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1668,70 +1668,85 @@ function triggerPrint() {
     const element = document.getElementById('printContent');
     const controls = document.getElementById('printControlsBar');
     
-    // 1. 캡처가 엉뚱한 곳에서 시작되지 않도록 스크롤 초기화
+    // 1. 스크롤 맨 위로 초기화
     window.scrollTo(0, 0);
     controls.style.display = 'none';
     
-    // 2. 우측 잘림의 주범인 상위 태그(body, html)의 숨김 처리(overflow) 일시 해제
+    // 2. 현재 상태의 모든 CSS를 백업
     const origBodyOverflow = document.body.style.overflow;
-    const origHtmlOverflow = document.documentElement.style.overflow;
+    const origElementCss = element.style.cssText;
     document.body.style.overflow = 'visible';
-    document.documentElement.style.overflow = 'visible';
-
-    // 3. 요소 백업 및 너비 강제 확장 (A4 비율에 최적화된 900px 적용)
-    const origWidth = element.style.width;
-    const origMaxWidth = element.style.maxWidth;
-    element.style.width = '900px';
-    element.style.maxWidth = '900px';
     
-    // 표 전체가 900px을 꽉 채우도록 설정
+    // 3. [페이지 분할 오류 해결] 컨테이너를 강제로 block으로 변경 (flex 상태에선 page-break가 작동하지 않음)
+    // A4 용지 비율에 딱 맞는 800px로 캡처 영역을 고정합니다.
+    element.style.cssText += `
+      width: 800px !important; 
+      max-width: 800px !important; 
+      display: block !important; 
+      overflow: visible !important; 
+      margin: 0 auto !important;
+    `;
+    
+    // 4. [우측 잘림 원천 차단] 테이블이 800px을 넘지 못하도록 가두고, 긴 글씨는 줄바꿈 처리
     const tables = element.querySelectorAll('table');
-    const origTablesCss = [];
+    const origTableCss = [];
     tables.forEach((tbl, index) => {
-      origTablesCss[index] = tbl.style.cssText;
-      tbl.style.cssText += ' width: 100% !important; max-width: 100% !important; table-layout: auto !important; margin: 0 auto !important;';
+      origTableCss[index] = tbl.style.cssText;
+      tbl.style.cssText += `
+        width: 100% !important; 
+        max-width: 100% !important; 
+        table-layout: auto !important; 
+        word-wrap: break-word !important; 
+        word-break: keep-all !important; 
+        margin: 0 auto !important;
+      `;
     });
     
-    // 4. 날짜 두 줄 쪼개짐 방지
+    // 5. 날짜 두 줄 쪼개짐 방지
     const dateCols = element.querySelectorAll('.date-col');
-    const origDatesCss = [];
+    const origDateCss = [];
     dateCols.forEach((col, index) => {
-      origDatesCss[index] = col.style.cssText;
-      col.style.cssText += ' font-family: Arial, sans-serif !important; letter-spacing: 0px !important; white-space: nowrap !important;';
+      origDateCss[index] = col.style.cssText;
+      col.style.cssText += 'font-family: Arial, sans-serif !important; letter-spacing: 0px !important; white-space: nowrap !important;';
     });
     
-    // 5. 다음장 끌림 방지 분할 명령 주입
+    // 6. [페이지 분할 확실히 적용] 분할선에도 강제 block 적용
     const pageBreaks = element.querySelectorAll('.page-break');
-    pageBreaks.forEach(pb => pb.classList.add('html2pdf__page-break'));
+    const origPageBreakCss = [];
+    pageBreaks.forEach((pb, index) => {
+      origPageBreakCss[index] = pb.style.cssText;
+      pb.style.cssText += 'display: block !important; page-break-before: always !important; clear: both !important;';
+      pb.classList.add('html2pdf__page-break');
+    });
 
-    // 완벽한 원상 복구 함수
+    // 7. 완벽한 원상 복구 함수
     const restoreUI = () => {
       document.body.style.overflow = origBodyOverflow;
-      document.documentElement.style.overflow = origHtmlOverflow;
-      element.style.width = origWidth;
-      element.style.maxWidth = origMaxWidth;
+      element.style.cssText = origElementCss;
       
-      tables.forEach((tbl, index) => { tbl.style.cssText = origTablesCss[index]; });
-      dateCols.forEach((col, index) => { col.style.cssText = origDatesCss[index]; });
-      pageBreaks.forEach(pb => pb.classList.remove('html2pdf__page-break'));
+      tables.forEach((tbl, index) => { tbl.style.cssText = origTableCss[index]; });
+      dateCols.forEach((col, index) => { col.style.cssText = origDateCss[index]; });
+      pageBreaks.forEach((pb, index) => { 
+        pb.style.cssText = origPageBreakCss[index];
+        pb.classList.remove('html2pdf__page-break'); 
+      });
       
       controls.style.display = 'flex'; 
     };
     
     alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 파일로 저장하세요.");
     
-    // 6. [백화현상 및 우측 잘림 동시 해결] 
-    // 스타일을 주입하고 0.3초 대기하여 렌더링을 완료시킨 뒤 캡처 진행
+    // 8. 속성 적용 후 렌더링을 위해 0.3초 대기 후 캡처
     setTimeout(() => {
       const opt = {
-        margin: [10, 10, 10, 10],
+        margin: [15, 10, 15, 10],
         filename: '공개강연계획표.pdf',
-        image: { type: 'jpeg', quality: 0.98 },
+        image: { type: 'jpeg', quality: 1 },
         html2canvas: { 
-          scale: 1.5, // [핵심] 아이폰 메모리 초과로 인한 백화현상(하얀 화면)을 막기 위해 scale을 1.5로 조정
+          scale: 2, 
           useCORS: true, 
-          windowWidth: 900, // 너비 강제 확장
-          width: 900,
+          windowWidth: 800, // 컨테이너 너비와 정확히 일치시킴
+          width: 800,
           scrollX: 0,
           scrollY: 0
         }, 
@@ -1740,7 +1755,7 @@ function triggerPrint() {
       };
 
       html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
-        restoreUI(); // 캡처 직후 화면 원상 복구
+        restoreUI(); 
         
         const file = new File([pdfBlob], '공개강연계획표.pdf', { type: 'application/pdf' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -1756,10 +1771,10 @@ function triggerPrint() {
         console.error('PDF 생성 에러:', error);
         restoreUI(); 
       });
-    }, 300); // 0.3초 대기
+    }, 300);
     
   } else {
-    // PC 인쇄 무조건 작동
+    // [PC 내보내기 절대 보호]
     window.print();
   }
 }
