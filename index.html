@@ -1659,7 +1659,7 @@ function closePrintView() {
 }
 
 // PC 인쇄 100% 보존.
-// 2페이지 제목이 1페이지 하단에 끌려 나오는 현상을 완벽하게 차단한 최종 코드
+// 날짜 열의 숫자 겹침 현상을 자간 확보(letter-spacing)와 최소 너비(min-width)로 완벽히 해결한 최종 코드
 function triggerPrint() {
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
   const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -1672,11 +1672,9 @@ function triggerPrint() {
     
     alert("스마트폰에서는 레이아웃 최적화를 위해 PDF 파일을 생성합니다. 생성 후 공유 창에서 파일로 저장하세요.");
     
-    // 캔버스 기준폭 780px (크기 큼직하게 유지)
     const captureWidth = 780;
 
     const opt = {
-      // 상하좌우 5mm 여백 유지
       margin: [5, 5, 5, 5], 
       filename: '공개강연계획표.pdf',
       image: { type: 'jpeg', quality: 1 },
@@ -1724,16 +1722,19 @@ function triggerPrint() {
           `;
         });
 
+        // [마지막 수정 포인트] 날짜 열 숫자 겹침 완벽 차단
         const dateCols = clonedElement.querySelectorAll('.date-col');
         dateCols.forEach(col => {
           col.style.cssText += `
-            font-family: Arial, sans-serif !important; 
+            font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif !important; 
             white-space: nowrap !important;
+            letter-spacing: 1.5px !important; /* 글자 간격을 인위적으로 넓혀 숫자가 겹치지 않게 함 */
+            min-width: 90px !important; /* 날짜 열이 좁아져서 글씨가 찌그러지는 것을 방지 */
+            padding-left: 10px !important;
+            padding-right: 10px !important;
           `;
         });
         
-        // [핵심] 페이지 분할(끌림 방지) 설정 강화
-        // 페이지가 나뉘는 지점에 어떠한 잔여물도 남지 않도록 높이를 0으로 만들고 투명하게 처리합니다.
         const pageBreaks = clonedElement.querySelectorAll('.page-break');
         pageBreaks.forEach(pb => {
           pb.style.cssText += `
@@ -1746,19 +1747,17 @@ function triggerPrint() {
             padding: 0 !important;
             border: none !important;
             page-break-before: always !important;
-            page-break-after: always !important; /* 앞뒤로 확실하게 끊어줌 */
+            page-break-after: always !important;
             clear: both !important;
           `;
           pb.classList.add('html2pdf__page-break');
         });
         
-        // 추가 안전장치: .page-break 바로 다음에 오는 제목(h1, h2, div 등) 태그가 위로 딸려오지 않도록 여백 초기화
         const nextElements = clonedElement.querySelectorAll('.page-break + *');
         nextElements.forEach(el => {
             el.style.cssText += 'margin-top: 0 !important; padding-top: 0 !important;';
         });
       },
-      // pagebreak 모드를 더 강력하게 세팅
       pagebreak: { mode: ['css', 'legacy'], avoid: 'tr', before: '.page-break' } 
     };
 
